@@ -66,7 +66,7 @@ static class Padrao
 
 class Tema
 {
-    public Color Fundo, Campo, Barra, TextoBarra, Alca, TextoBotao, SombraTexto;
+    public Color Fundo, Campo, TextoBarra, TextoBotao, SombraTexto;
     public float ClarearBotao;
     public bool EscuroNoSistema;
 
@@ -74,9 +74,7 @@ class Tema
     {
         Fundo = Color.FromArgb(18, 18, 22),
         Campo = Color.FromArgb(38, 38, 46),
-        Barra = Color.FromArgb(38, 38, 46),
         TextoBarra = Color.Gainsboro,
-        Alca = Color.DimGray,
         TextoBotao = Color.White,
         SombraTexto = Color.FromArgb(110, 0, 0, 0),
         ClarearBotao = 0f,
@@ -87,9 +85,7 @@ class Tema
     {
         Fundo = Color.FromArgb(232, 233, 238),
         Campo = Color.White,
-        Barra = Color.FromArgb(212, 214, 222),
         TextoBarra = Color.FromArgb(45, 45, 55),
-        Alca = Color.FromArgb(150, 152, 162),
         TextoBotao = Color.White,
         SombraTexto = Color.FromArgb(110, 0, 0, 0),
         ClarearBotao = 0.08f,
@@ -301,128 +297,6 @@ class VeuDeBrilho : Form
     }
 }
 
-// Opções de enquadramento mostradas ao arrastar o painel até o topo do monitor.
-// Não recebe foco nem toque: quem acompanha o dedo é o próprio painel.
-class SeletorDeEnquadramento : Form
-{
-    const int WS_EX_TOPMOST = 0x00000008;
-    const int WS_EX_TOOLWINDOW = 0x00000080;
-    const int WS_EX_NOACTIVATE = 0x08000000;
-
-    const int LarguraDaOpcao = 132;
-    const int AlturaDaOpcao = 76;
-    const int Margem = 10;
-    const int FaixaDoTopo = 48;
-
-    static readonly RectangleF[][] Opcoes =
-    {
-        new[] { new RectangleF(0, 0, 1 / 2f, 1), new RectangleF(1 / 2f, 0, 1 / 2f, 1) },
-        new[] { new RectangleF(0, 0, 1 / 3f, 1), new RectangleF(1 / 3f, 0, 1 / 3f, 1), new RectangleF(2 / 3f, 0, 1 / 3f, 1) },
-        new[]
-        {
-            new RectangleF(0, 0, 1 / 2f, 1 / 2f), new RectangleF(1 / 2f, 0, 1 / 2f, 1 / 2f),
-            new RectangleF(0, 1 / 2f, 1 / 2f, 1 / 2f), new RectangleF(1 / 2f, 1 / 2f, 1 / 2f, 1 / 2f),
-        },
-    };
-
-    Rectangle area;
-    int opcaoSobre = -1, zonaSobre = -1;
-
-    public SeletorDeEnquadramento()
-    {
-        FormBorderStyle = FormBorderStyle.None;
-        ShowInTaskbar = false;
-        StartPosition = FormStartPosition.Manual;
-        BackColor = Color.FromArgb(38, 38, 46);
-        DoubleBuffered = true;
-        ClientSize = new Size(Opcoes.Length * (LarguraDaOpcao + Margem) + Margem, AlturaDaOpcao + 2 * Margem);
-    }
-
-    protected override bool ShowWithoutActivation
-    {
-        get { return true; }
-    }
-
-    protected override CreateParams CreateParams
-    {
-        get
-        {
-            CreateParams parametros = base.CreateParams;
-            parametros.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TOOLWINDOW;
-            return parametros;
-        }
-    }
-
-    Rectangle QuadroDaOpcao(int opcao)
-    {
-        return new Rectangle(Margem + opcao * (LarguraDaOpcao + Margem), Margem, LarguraDaOpcao, AlturaDaOpcao);
-    }
-
-    static Rectangle Zona(Rectangle quadro, RectangleF fracao)
-    {
-        return Rectangle.FromLTRB(
-            quadro.X + (int)Math.Round(fracao.Left * quadro.Width),
-            quadro.Y + (int)Math.Round(fracao.Top * quadro.Height),
-            quadro.X + (int)Math.Round(fracao.Right * quadro.Width),
-            quadro.Y + (int)Math.Round(fracao.Bottom * quadro.Height));
-    }
-
-    public void Acompanhar(Point naTela)
-    {
-        area = Screen.FromPoint(naTela).WorkingArea;
-        bool mostrar = Visible
-            ? naTela.Y < area.Y + Height + 2 * FaixaDoTopo
-            : naTela.Y < area.Y + FaixaDoTopo;
-        if (!mostrar)
-        {
-            Esconder();
-            return;
-        }
-
-        Location = new Point(area.X + (area.Width - Width) / 2, area.Y + Margem);
-        if (!Visible)
-            Show();
-
-        Point local = new Point(naTela.X - Left, naTela.Y - Top);
-        opcaoSobre = zonaSobre = -1;
-        for (int o = 0; o < Opcoes.Length; o++)
-            for (int z = 0; z < Opcoes[o].Length; z++)
-                if (Zona(QuadroDaOpcao(o), Opcoes[o][z]).Contains(local))
-                {
-                    opcaoSobre = o;
-                    zonaSobre = z;
-                }
-        Invalidate();
-    }
-
-    public void Esconder()
-    {
-        opcaoSobre = zonaSobre = -1;
-        Hide();
-    }
-
-    // Retângulo escolhido, ou vazio se o dedo não estiver sobre nenhuma opção.
-    public Rectangle Escolhido()
-    {
-        return Visible && opcaoSobre >= 0 ? Zona(area, Opcoes[opcaoSobre][zonaSobre]) : Rectangle.Empty;
-    }
-
-    protected override void OnPaint(PaintEventArgs e)
-    {
-        base.OnPaint(e);
-        using (var zona = new SolidBrush(Color.FromArgb(86, 97, 120)))
-        using (var marcada = new SolidBrush(Color.FromArgb(10, 124, 240)))
-        {
-            for (int o = 0; o < Opcoes.Length; o++)
-                for (int z = 0; z < Opcoes[o].Length; z++)
-                {
-                    Rectangle retangulo = Rectangle.Inflate(Zona(QuadroDaOpcao(o), Opcoes[o][z]), -2, -2);
-                    e.Graphics.FillRectangle(o == opcaoSobre && z == zonaSobre ? marcada : zona, retangulo);
-                }
-        }
-    }
-}
-
 static class Brilho
 {
     const byte VCP_BRILHO = 0x10;
@@ -610,9 +484,8 @@ static class Brilho
 
 class Painel : Form
 {
-    const int WS_EX_TOPMOST = 0x00000008;
-    const int WS_EX_TOOLWINDOW = 0x00000080;
-    const int WS_EX_NOACTIVATE = 0x08000000;
+    const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    const int HTCLIENT = 1;
 
     const int WM_MOUSEACTIVATE = 0x0021;
     const int WM_POINTERUPDATE = 0x0245;
@@ -626,18 +499,15 @@ class Painel : Form
     const int POINTER_FLAG_CANCELADO = 0x8000;
 
     const int NENHUM = -1;
-    const int BOTAO_FECHAR = -2;
-    const int BOTAO_CONFIGURAR = -3;
     const int ID_MOUSE = -1;
-    const int ALTURA_BARRA = 44;
-    const int TAMANHO_ALCA = 36;
     const int RAIO_BOTAO = 18;
     const int ALTURA_TECLA = 9;
     const int CAMADAS_SOMBRA = 4;
     const float PROPORCAO_ICONE = 0.48f;
     const float PROPORCAO_SO_ICONE = 0.62f;
 
-    static readonly Font fonteBarra = new Font("Segoe UI", 16f, GraphicsUnit.Pixel);
+    [DllImport("dwmapi.dll")]
+    static extern int DwmSetWindowAttribute(IntPtr janela, int atributo, ref int valor, int tamanho);
 
     static Painel instancia;
     static JanelaConfiguracoes janelaConfiguracoes;
@@ -647,24 +517,14 @@ class Painel : Form
     Font fonte;
     Tema tema = TemaEscolhido();
     bool janelaNaTela;
-
-    // Mover e redimensionar são feitos aqui: o laço de arraste do sistema
-    // ativa a janela e tira o foco do monitor principal.
-    readonly SeletorDeEnquadramento seletor = new SeletorDeEnquadramento();
     readonly VeuDeBrilho veu = new VeuDeBrilho();
-    int? toqueDoArrasto;
-    bool redimensionando;
-    Point inicioDoArrasto;
-    Rectangle limitesIniciais;
 
     public Painel()
     {
         instancia = this;
 
         Text = "TapBoard";
-        FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
-        ShowInTaskbar = false;
         BackColor = tema.Fundo;
         AutoScaleMode = AutoScaleMode.None;
         DoubleBuffered = true;
@@ -682,6 +542,39 @@ class Painel : Form
         iconeBandeja.Visible = true;
 
         SystemEvents.DisplaySettingsChanged += AoMudarMonitores;
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        PintarBarraDoWindows();
+    }
+
+    void PintarBarraDoWindows()
+    {
+        int escuro = tema.EscuroNoSistema ? 1 : 0;
+        DwmSetWindowAttribute(Handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref escuro, sizeof(int));
+    }
+
+    protected override void OnResizeEnd(EventArgs e)
+    {
+        base.OnResizeEnd(e);
+        GuardarJanela();
+        Configuracoes.Atual.Salvar();
+    }
+
+    // Ao ativar, o painel sobe e ficaria acima da película do deck.
+    protected override void OnActivated(EventArgs e)
+    {
+        base.OnActivated(e);
+        AtualizarVeu();
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        GuardarJanela();
+        Configuracoes.Atual.Salvar();
+        base.OnFormClosing(e);
     }
 
     // A janela é a única do app: fechá-la encerra o processo.
@@ -733,23 +626,6 @@ class Painel : Form
             instancia.iconeBandeja.ShowBalloonTip(4000, "TapBoard", mensagem, ToolTipIcon.Warning)));
     }
 
-    // WS_EX_TOPMOST vai aqui, não na propriedade TopMost: ela ignora
-    // ShowWithoutActivation e rouba o foco ao mostrar a janela.
-    protected override CreateParams CreateParams
-    {
-        get
-        {
-            CreateParams parametros = base.CreateParams;
-            parametros.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_TOOLWINDOW;
-            return parametros;
-        }
-    }
-
-    protected override bool ShowWithoutActivation
-    {
-        get { return true; }
-    }
-
     static Tema TemaEscolhido()
     {
         switch (Configuracoes.Atual.Tema)
@@ -785,6 +661,7 @@ class Painel : Form
     {
         instancia.tema = TemaEscolhido();
         instancia.BackColor = instancia.tema.Fundo;
+        instancia.PintarBarraDoWindows();
         instancia.toquesAtivos.Clear();
         instancia.Posicionar();
         instancia.AtualizarVeu();
@@ -809,6 +686,7 @@ class Painel : Form
     public void Posicionar()
     {
         GuardarJanela();
+        TopMost = Configuracoes.Atual.SempreVisivel;
 
         // Sem o monitor do deck, usa janela para não cobrir o monitor principal.
         Screen tela = EscolherTela();
@@ -827,22 +705,29 @@ class Painel : Form
         if (!janelaNaTela)
             return;
 
+        // Maximizada ou minimizada, vale o tamanho que ela tem ao restaurar.
+        Rectangle area = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
         Configuracoes c = Configuracoes.Atual;
-        c.JanelaX = Left;
-        c.JanelaY = Top;
-        c.JanelaLargura = Width;
-        c.JanelaAltura = Height;
+        c.JanelaX = area.X;
+        c.JanelaY = area.Y;
+        c.JanelaLargura = area.Width;
+        c.JanelaAltura = area.Height;
     }
 
     void MostrarEmTelaCheia(Screen tela)
     {
         janelaNaTela = false;
+        WindowState = FormWindowState.Normal;
+        FormBorderStyle = FormBorderStyle.None;
         Bounds = tela.Bounds;
     }
 
     void MostrarEmJanela(Screen tela)
     {
         janelaNaTela = true;
+        FormBorderStyle = FormBorderStyle.Sizable;
+        if (WindowState != FormWindowState.Normal)
+            return;
 
         Configuracoes c = Configuracoes.Atual;
         var area = new Rectangle(c.JanelaX, c.JanelaY, c.JanelaLargura, c.JanelaAltura);
@@ -885,18 +770,27 @@ class Painel : Form
     {
         switch (m.Msg)
         {
+            // Tocar nos botões não ativa a janela: as teclas seguem para o app em foco.
+            // Barra e bordas ativam, como em qualquer janela.
             case WM_MOUSEACTIVATE:
-                m.Result = (IntPtr)MA_NOACTIVATE;
-                return;
+                if (BitsBaixos(m.LParam) == HTCLIENT)
+                {
+                    m.Result = (IntPtr)MA_NOACTIVATE;
+                    return;
+                }
+                break;
             case WM_POINTERACTIVATE:
-                m.Result = (IntPtr)PA_NOACTIVATE;
-                return;
+                if (BitsAltos(m.WParam) == HTCLIENT)
+                {
+                    m.Result = (IntPtr)PA_NOACTIVATE;
+                    return;
+                }
+                break;
             case WM_POINTERDOWN:
                 ToqueIniciado(IdDoToque(m), PosicaoDoToque(m));
                 m.Result = IntPtr.Zero;
                 return;
             case WM_POINTERUPDATE:
-                ToqueMovido(IdDoToque(m), PosicaoDoToque(m));
                 m.Result = IntPtr.Zero;
                 return;
             case WM_POINTERUP:
@@ -927,7 +821,6 @@ class Painel : Form
         return BitsBaixos(m.WParam);
     }
 
-    // Posição na tela, não na janela: a janela se move durante o arraste.
     static Point PosicaoDoToque(Message m)
     {
         // short: em monitores à esquerda do principal, a coordenada é negativa.
@@ -936,53 +829,12 @@ class Painel : Form
 
     void ToqueIniciado(int id, Point naTela)
     {
-        Point local = PointToClient(naTela);
-        int botao = BotaoEm(local);
-
-        if (botao == NENHUM && janelaNaTela && toqueDoArrasto == null
-            && (BarraDaJanela().Contains(local) || AlcaDaJanela().Contains(local)))
-        {
-            toqueDoArrasto = id;
-            redimensionando = AlcaDaJanela().Contains(local);
-            inicioDoArrasto = naTela;
-            limitesIniciais = Bounds;
-            return;
-        }
-
-        toquesAtivos[id] = botao;
+        toquesAtivos[id] = BotaoEm(PointToClient(naTela));
         Invalidate();
-    }
-
-    void ToqueMovido(int id, Point naTela)
-    {
-        if (toqueDoArrasto != id)
-            return;
-
-        int dx = naTela.X - inicioDoArrasto.X;
-        int dy = naTela.Y - inicioDoArrasto.Y;
-        if (redimensionando)
-            Size = new Size(limitesIniciais.Width + dx, limitesIniciais.Height + dy);
-        else
-        {
-            Location = new Point(limitesIniciais.X + dx, limitesIniciais.Y + dy);
-            seletor.Acompanhar(naTela);
-        }
     }
 
     void ToqueFinalizado(int id, Point naTela, bool executar)
     {
-        if (toqueDoArrasto == id)
-        {
-            toqueDoArrasto = null;
-            Rectangle enquadrado = seletor.Escolhido();
-            seletor.Esconder();
-            if (executar && !enquadrado.IsEmpty)
-                Bounds = enquadrado;
-            GuardarJanela();
-            Configuracoes.Atual.Salvar();
-            return;
-        }
-
         int botao;
         if (!toquesAtivos.TryGetValue(id, out botao))
             return;
@@ -1000,12 +852,6 @@ class Painel : Form
             ToqueIniciado(ID_MOUSE, MousePosition);
     }
 
-    protected override void OnMouseMove(MouseEventArgs e)
-    {
-        base.OnMouseMove(e);
-        ToqueMovido(ID_MOUSE, MousePosition);
-    }
-
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
@@ -1015,18 +861,9 @@ class Painel : Form
 
     static void Executar(int indice)
     {
-        if (indice == BOTAO_FECHAR)
-        {
-            Application.Exit();
-            return;
-        }
-
         try
         {
-            if (indice == BOTAO_CONFIGURAR)
-                AbrirConfiguracoes();
-            else
-                Acoes.Executar(Configuracoes.Atual.Botoes[indice]);
+            Acoes.Executar(Configuracoes.Atual.Botoes[indice]);
         }
         catch (Exception erro)
         {
@@ -1036,43 +873,13 @@ class Painel : Form
 
     // ===== Layout e desenho =====
 
-    Rectangle BarraDaJanela()
-    {
-        return new Rectangle(0, 0, ClientSize.Width, ALTURA_BARRA);
-    }
-
-    Rectangle FecharDaJanela()
-    {
-        return new Rectangle(ClientSize.Width - ALTURA_BARRA, 0, ALTURA_BARRA, ALTURA_BARRA);
-    }
-
-    Rectangle ConfigurarDaJanela()
-    {
-        return new Rectangle(ClientSize.Width - ALTURA_BARRA * 2, 0, ALTURA_BARRA, ALTURA_BARRA);
-    }
-
-    Rectangle AlcaDaJanela()
-    {
-        return new Rectangle(
-            ClientSize.Width - TAMANHO_ALCA,
-            ClientSize.Height - TAMANHO_ALCA,
-            TAMANHO_ALCA,
-            TAMANHO_ALCA);
-    }
-
     Rectangle AreaDosBotoes()
     {
-        int topo = janelaNaTela ? ALTURA_BARRA : 0;
-        return new Rectangle(0, topo, ClientSize.Width, ClientSize.Height - topo);
+        return ClientRectangle;
     }
 
     int BotaoEm(Point posicao)
     {
-        if (janelaNaTela && FecharDaJanela().Contains(posicao))
-            return BOTAO_FECHAR;
-        if (janelaNaTela && ConfigurarDaJanela().Contains(posicao))
-            return BOTAO_CONFIGURAR;
-
         for (int i = 0; i < Configuracoes.Atual.Botoes.Count; i++)
             if (RetanguloDoBotao(i).Contains(posicao))
                 return i;
@@ -1155,9 +962,6 @@ class Painel : Form
             List<Botao> botoes = Configuracoes.Atual.Botoes;
             for (int i = 0; i < botoes.Count; i++)
                 DesenharBotao(g, botoes[i], RetanguloDoBotao(i), toquesAtivos.ContainsValue(i), alinhamento);
-
-            if (janelaNaTela)
-                DesenharMoldura(g, alinhamento);
         }
     }
 
@@ -1226,31 +1030,6 @@ class Painel : Form
             (int)(a.B + (b.B - a.B) * quantidade));
     }
 
-    void DesenharMoldura(Graphics g, StringFormat alinhamento)
-    {
-        Rectangle barra = BarraDaJanela();
-        using (var fundo = new SolidBrush(tema.Barra))
-            g.FillRectangle(fundo, barra);
-        using (var texto = new SolidBrush(tema.TextoBarra))
-        {
-            g.DrawString("TapBoard", fonteBarra, texto, barra, alinhamento);
-            g.DrawString("⚙", fonteBarra, texto, ConfigurarDaJanela(), alinhamento);
-            g.DrawString("✕", fonteBarra, texto, FecharDaJanela(), alinhamento);
-        }
-
-        Rectangle alca = AlcaDaJanela();
-        using (var preenchimento = new SolidBrush(tema.Alca))
-            g.FillPolygon(preenchimento, new[]
-            {
-                new Point(alca.Right, alca.Top + 12),
-                new Point(alca.Right, alca.Bottom),
-                new Point(alca.Left + 12, alca.Bottom),
-            });
-
-        using (var contorno = new Pen(tema.Barra))
-            g.DrawRectangle(contorno, 0, 0, ClientSize.Width - 1, ClientSize.Height - 1);
-    }
-
     static GraphicsPath Arredondado(Rectangle r, int raio)
     {
         int d = raio * 2;
@@ -1299,6 +1078,7 @@ static class Programa
             bool arquivoValido = Configuracoes.Carregar();
             if (InicioComWindows.Ativo)
                 InicioComWindows.Definir(true);
+            AtalhoNoIniciar.Atualizar();
 
             using (var painel = new Painel())
             {

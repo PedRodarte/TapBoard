@@ -1,6 +1,6 @@
 # TapBoard — painel de botões para monitores touch, sem instalar nada
 
-Painel de botões feito para monitores de toque. Roda no Windows e abre em janela,
+Painel de botões feito para monitores de toque. Roda no Windows numa janela comum,
 podendo ir para tela cheia num monitor portátil touch que fica na mesa como
 segunda tela. Tocar num botão executa uma ação (brilho, volume, mídia, atalhos, apps) **sem
 tirar o foco do app que está no monitor principal**.
@@ -11,16 +11,17 @@ tirar o foco do app que está no monitor principal**.
    que já vem no Windows, gera o `TapBoard.exe` e abre o painel.
 2. Depois disso, basta abrir o `TapBoard.exe`.
 3. Para mudar botões, ícones, fonte, tema ou monitor, abra **Configurações** pelo
-   botão do painel, pela engrenagem da janela ou pelo ícone na bandeja do sistema.
-   Nada disso exige recompilar.
+   botão do painel ou pelo ícone na bandeja do sistema. Nada disso exige recompilar.
+
+Ao abrir, o programa cria ou atualiza o próprio atalho no menu Iniciar.
 
 As configurações ficam em `%APPDATA%\TapBoard\configuracoes.xml`, e os ícones
 baixados, em `%APPDATA%\TapBoard\icones`. Se você mover o `TapBoard.exe` com a
 opção de iniciar com o Windows ativa, abra-o uma vez no novo lugar.
 
-O botão **Janela / Tela cheia** alterna o modo. Em janela, arraste pela barra
-superior e redimensione pelo canto inferior direito. Para sair, use o ✕ da
-janela ou o ícone do TapBoard na bandeja do sistema.
+O botão **Janela / Tela cheia** alterna o modo. Em janela, valem os controles
+comuns do Windows: barra de título, bordas, maximizar, minimizar e enquadramento.
+Para sair, use o ✕ da janela ou o ícone do TapBoard na bandeja do sistema.
 
 O painel abre no tema do Windows até você escolher outro: o botão **Tema claro /
 escuro** alterna na hora e a escolha fica salva.
@@ -60,24 +61,17 @@ escuro** alterna na hora e a escolha fica salva.
 
 ## Arquitetura atual
 
-- Janela sem borda do Windows, sempre no topo. Sem o monitor do deck, abre em
-  janela no monitor principal, para não cobri-lo.
-- **Não roubar foco é o requisito central.** A janela usa `WS_EX_NOACTIVATE`.
-  Qualquer mudança precisa manter isso funcionando para **mouse e toque**, e
-  isso inclui:
-  - manter `ShowWithoutActivation` e tratar `WM_MOUSEACTIVATE` e
-    `WM_POINTERACTIVATE` retornando "não ativar" (3);
-  - usar `WS_EX_TOPMOST` em `CreateParams`, nunca a propriedade `TopMost`, que
-    ignora `ShowWithoutActivation`;
+- Janela comum do Windows, com barra de título, bordas, maximizar, enquadramento
+  e ícone na barra de tarefas. Ficar sempre visível é opção nas configurações.
+  Sem o monitor do deck, abre em janela no monitor principal, para não cobri-lo.
+- **Tocar nos botões não tira o foco do app em uso**, para mouse e toque. Isso inclui:
+  - tratar `WM_MOUSEACTIVATE` e `WM_POINTERACTIVATE` retornando "não ativar" (3)
+    só quando o toque cai na área dos botões (`HTCLIENT`);
   - não usar controles filhos: os botões são desenhados na própria janela;
-  - não usar a barra de título nem a borda do Windows: o laço de arraste do
-    sistema ativa a janela. Por isso a barra, o ✕ e a alça são desenhados pelo
-    TapBoard, que move e redimensiona a janela por conta própria;
   - ações que enviam teclas devem chegar ao app em foco no monitor principal.
-- O Snap do Windows não atua numa janela que nunca recebe foco. Por isso, arrastar
-  o painel até o topo do monitor abre o seletor próprio (metades, terços, quartos).
-- A janela de configurações é a exceção: ela recebe foco de propósito, porque é
-  onde se digita. Ela não pode ser usada como caminho para ativar o painel.
+- Barra de título e bordas ativam a janela, como em qualquer programa. Depois de
+  usá-las, os atalhos do painel só voltam ao outro app quando ele recebe o foco de novo.
+- A janela de configurações recebe foco de propósito, porque é onde se digita.
 - **Botões ficam salvos nas configurações.** Cada item tem rótulo, cor, ação,
   parâmetro, ícone, largura e, nos de brilho, o monitor. A lista inicial fica em `Padrao`, no topo de
   `TapBoard.cs`, e a lógica de layout e de desenho fica separada dela.
@@ -109,8 +103,10 @@ escuro** alterna na hora e a escolha fica salva.
 
 - **Manter tudo em C# 5 com o que já vem no Windows.** Não propor reescrever em
   outra linguagem nem adicionar dependências sem perguntar antes.
-- **Preservar o comportamento de não roubar foco** em toda alteração. Se uma
-  mudança puder afetá-lo, avisar explicitamente e explicar como testar.
+- **Manter os controles comuns do Windows.** Não trocar barra, bordas ou arraste
+  por versões desenhadas à mão para proteger o foco: foi decisão do usuário.
+- **Tocar nos botões não pode tirar o foco do app em uso.** Se uma mudança puder
+  afetar isso, avisar explicitamente e explicar como testar.
 - **Manter o projeto completo e compilando** a cada mudança, não só trechos ou
   diffs soltos.
 - Tudo que o usuário puder ajustar deve ficar na janela de configurações, não no código.
@@ -128,8 +124,9 @@ O Claude não consegue tocar na tela, então o teste com o dedo é manual:
 2. Deixar um editor de texto em foco no monitor principal, tocar em vários
    botões e confirmar que o cursor continua piscando no editor.
 3. Testar com o mouse e com o dedo, porque os dois caminhos de ativação são diferentes.
-4. No modo janela, arrastar, redimensionar e alternar para tela cheia, confirmando
-   que o foco não sai do editor.
+4. No modo janela, arrastar, redimensionar, maximizar, enquadrar e alternar para
+   tela cheia. Usar a barra ativa o TapBoard; depois de voltar ao editor, os botões
+   não devem tirar o foco dele.
 5. Abrir as configurações, alterar um botão, salvar e reabrir o TapBoard para
    confirmar que a alteração continua lá.
 6. Testar cada botão novo individualmente.

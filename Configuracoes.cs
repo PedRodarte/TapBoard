@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Xml.Serialization;
@@ -102,6 +103,7 @@ public class Configuracoes
     public EscolhaDeTema Tema = EscolhaDeTema.Windows;
     public string Fonte = Padrao.Fonte;
     public int EscalaFonte = 100;
+    public bool SempreVisivel = true;
     public bool BrilhoDeckPorSoftware = true;
     public int BrilhoDeck = 100;
     public int JanelaX;
@@ -191,6 +193,27 @@ static class InicioComWindows
     }
 }
 
+// Sem instalador, é o próprio programa que se coloca no menu Iniciar.
+static class AtalhoNoIniciar
+{
+    public static void Atualizar()
+    {
+        try
+        {
+            string caminho = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "TapBoard.lnk");
+            Type tipo = Type.GetTypeFromProgID("WScript.Shell");
+            object shell = Activator.CreateInstance(tipo);
+            object atalho = tipo.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { caminho });
+            atalho.GetType().InvokeMember("TargetPath", BindingFlags.SetProperty, null, atalho, new object[] { Application.ExecutablePath });
+            atalho.GetType().InvokeMember("Save", BindingFlags.InvokeMethod, null, atalho, null);
+        }
+        catch (Exception)
+        {
+            // Sem o atalho, o painel funciona do mesmo jeito.
+        }
+    }
+}
+
 class Opcao
 {
     public readonly object Valor;
@@ -262,6 +285,7 @@ class JanelaConfiguracoes : Form
     readonly ComboBox comboMonitor = Combo("comboMonitor");
     readonly NumericUpDown campoEscala = new NumericUpDown { Name = "campoEscala", Minimum = 50, Maximum = 200, Increment = 10, Width = 80 };
     readonly CheckBox caixaInicio = new CheckBox { Name = "caixaInicio", Text = "Iniciar com o Windows", AutoSize = true };
+    readonly CheckBox caixaSempreVisivel = new CheckBox { Name = "caixaSempreVisivel", Text = "Sempre visível sobre as outras janelas", AutoSize = true };
     readonly CheckBox caixaBrilhoSoftware = new CheckBox { Name = "caixaBrilhoSoftware", Text = "Escurecer o deck por software", AutoSize = true };
     readonly ListBox lista = new ListBox { Name = "lista", Dock = DockStyle.Fill, IntegralHeight = false };
     readonly TextBox campoRotulo = new TextBox { Name = "campoRotulo", AccessibleName = "Rotulo do botao", Dock = DockStyle.Fill };
@@ -347,7 +371,8 @@ class JanelaConfiguracoes : Form
         grade.Controls.Add(Legenda("Tamanho do texto (%)"), 0, 4);
         grade.Controls.Add(campoEscala, 1, 4);
         grade.Controls.Add(caixaInicio, 1, 5);
-        grade.Controls.Add(caixaBrilhoSoftware, 1, 6);
+        grade.Controls.Add(caixaSempreVisivel, 1, 6);
+        grade.Controls.Add(caixaBrilhoSoftware, 1, 7);
 
         var grupo = new GroupBox { Text = "Geral", Dock = DockStyle.Fill };
         grupo.Controls.Add(grade);
@@ -516,6 +541,7 @@ class JanelaConfiguracoes : Form
 
         campoEscala.Value = Math.Max(50, Math.Min(200, copia.EscalaFonte));
         caixaInicio.Checked = InicioComWindows.Ativo;
+        caixaSempreVisivel.Checked = copia.SempreVisivel;
         caixaBrilhoSoftware.Checked = copia.BrilhoDeckPorSoftware;
     }
 
@@ -733,6 +759,7 @@ class JanelaConfiguracoes : Form
         copia.Tema = (EscolhaDeTema)Valor(comboTema);
         copia.Fonte = (string)Valor(comboFonte);
         copia.EscalaFonte = (int)campoEscala.Value;
+        copia.SempreVisivel = caixaSempreVisivel.Checked;
         copia.BrilhoDeckPorSoftware = caixaBrilhoSoftware.Checked;
         copia.BrilhoDeck = Configuracoes.Atual.BrilhoDeck;
 
