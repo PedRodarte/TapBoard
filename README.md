@@ -33,7 +33,9 @@ escuro** alterna na hora e a escolha fica salva.
   Vídeo por mini HDMI; o toque chega ao PC pelo USB-C (HID touch).
 - O brilho do Odyssey é controlado via DDC/CI pela API do Windows (`dxva2.dll`).
   O Antuvi aceita o comando, mas a luz sobe e desce fora de ordem. Por isso o deck
-  escurece, por padrão, com uma película preta que deixa passar o toque (10% a 100%, compensando o gama da tela).
+  escurece, por padrão, com uma película preta que deixa passar o toque (10% a 100%, compensando o gama da tela). Nesse modo, o
+  TapBoard mantém o brilho do próprio Antuvi em 100, para a película partir sempre
+  da mesma base.
 - Os dois monitores podem ter escala de DPI diferentes no Windows. O deck deve
   se posicionar no monitor touch pelo índice ou pelas coordenadas do monitor,
   nunca por posição fixa em pixels.

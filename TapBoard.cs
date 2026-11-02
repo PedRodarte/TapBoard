@@ -430,6 +430,7 @@ static class Brilho
     const int TENTATIVAS = 3;
 
     const int PAUSA_ENTRE_TENTATIVAS = 50;
+    const int BaseDoDeck = 100;
 
     static readonly object trava = new object();
     static readonly Queue<Action> fila = new Queue<Action>();
@@ -471,13 +472,18 @@ static class Brilho
     // O DDC/CI é lento: roda fora da interface, um comando por vez.
     public static void Enfileirar(AlvoDoBrilho alvo, bool relativo, int valor)
     {
+        Pedir(() =>
+        {
+            if (!Aplicar(alvo, relativo, valor))
+                Painel.Avisar("Não consegui ajustar o brilho de todos os monitores escolhidos.");
+        });
+    }
+
+    static void Pedir(Action comando)
+    {
         lock (trava)
         {
-            fila.Enqueue(() =>
-            {
-                if (!Aplicar(alvo, relativo, valor))
-                    Painel.Avisar("Não consegui ajustar o brilho de todos os monitores escolhidos.");
-            });
+            fila.Enqueue(comando);
             if (processando)
                 return;
             processando = true;
@@ -528,9 +534,24 @@ static class Brilho
         if (Painel.DeckPorSoftware(tela))
         {
             Painel.AjustarVeu(relativo, valor);
-            return true;
+            return AplicarPorDdc(tela, false, BaseDoDeck);
         }
+        return AplicarPorDdc(tela, relativo, valor);
+    }
 
+    // A película escurece a partir do brilho do próprio monitor, então a base precisa ser fixa.
+    public static void AncorarDeck()
+    {
+        Pedir(() =>
+        {
+            Screen deck = Painel.EscolherTela();
+            if (deck != null && Painel.DeckPorSoftware(deck))
+                AplicarPorDdc(deck, false, BaseDoDeck);
+        });
+    }
+
+    static bool AplicarPorDdc(Screen tela, bool relativo, int valor)
+    {
         var centro = new POINT
         {
             X = tela.Bounds.X + tela.Bounds.Width / 2,
@@ -703,6 +724,7 @@ class Painel : Form
     {
         base.OnShown(e);
         AtualizarVeu();
+        Brilho.AncorarDeck();
     }
 
     public static void Avisar(string mensagem)
@@ -766,6 +788,7 @@ class Painel : Form
         instancia.toquesAtivos.Clear();
         instancia.Posicionar();
         instancia.AtualizarVeu();
+        Brilho.AncorarDeck();
     }
 
     // Esta janela recebe foco de propósito: é onde se digita.
