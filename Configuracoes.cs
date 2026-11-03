@@ -207,6 +207,8 @@ static class AtalhoNoIniciar
             object shell = Activator.CreateInstance(tipo);
             object atalho = tipo.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { caminho });
             atalho.GetType().InvokeMember("TargetPath", BindingFlags.SetProperty, null, atalho, new object[] { Application.ExecutablePath });
+            // Explícito, senão o Windows pode manter o ícone antigo em cache.
+            atalho.GetType().InvokeMember("IconLocation", BindingFlags.SetProperty, null, atalho, new object[] { Application.ExecutablePath + ",0" });
             atalho.GetType().InvokeMember("Save", BindingFlags.InvokeMethod, null, atalho, null);
         }
         catch (Exception)
