@@ -122,7 +122,11 @@ No atalho valem letras, números, pontuação, `F1` a `F24` e os nomes `Ctrl`,
 Atalho e texto vão para o app em foco, porque o painel nunca toma o foco.
 
 O mudo do microfone vale para o microfone padrão e o de comunicação, em qualquer
-app. Com o microfone mudo, o botão mostra uma bolinha vermelha.
+app. Com o microfone mudo, o botão mostra uma bolinha vermelha e a versão "-off" do
+ícone, se existir (`mdi-microphone-off.svg` para `mdi-microphone.svg`).
+
+Botões de dois estados (mudo do som e do microfone) ficam afundados pela metade
+enquanto estão ligados, como uma tecla com trava.
 
 ## Roadmap (ideias futuras, por ordem aproximada)
 

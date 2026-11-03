@@ -313,6 +313,7 @@ static class Acoes
                 break;
             case TipoAcao.Mudo:
                 Teclado.Enviar(Vk.Mudo);
+                Audio.AtualizarEmSeguida();
                 break;
             case TipoAcao.MidiaAnterior:
                 Teclado.Enviar(Vk.MidiaAnterior);
@@ -336,7 +337,7 @@ static class Acoes
                 Comando.Rodar(botao.Parametro);
                 break;
             case TipoAcao.MicrofoneMudo:
-                Microfone.Alternar();
+                Audio.AlternarMicrofone();
                 Painel.Redesenhar();
                 break;
             case TipoAcao.Abrir:
@@ -403,10 +404,11 @@ static class Comando
     }
 }
 
-// Mudo do microfone padrão pelo Core Audio, o mesmo controle do ícone de som do
-// Windows. Vale para qualquer app de reunião.
-static class Microfone
+// Mudo do microfone e do som pelo Core Audio, o mesmo controle do ícone de som do
+// Windows. O do microfone vale para qualquer app de reunião.
+static class Audio
 {
+    const int Saida = 0;
     const int Captura = 1;
     const int PapelConsole = 0;
     const int PapelComunicacao = 2;
@@ -449,12 +451,13 @@ static class Microfone
         void GetMute([MarshalAs(UnmanagedType.Bool)] out bool mudo);
     }
 
-    // Último estado lido, para desenhar o botão sem chamar o Core Audio a cada pintura.
-    public static volatile bool Mudo;
+    // Último estado lido, para desenhar os botões sem chamar o Core Audio a cada pintura.
+    public static volatile bool MicrofoneMudo;
+    public static volatile bool SomMudo;
 
-    public static void Alternar()
+    public static void AlternarMicrofone()
     {
-        IAudioEndpointVolume principal = Volume(PapelConsole);
+        IAudioEndpointVolume principal = Volume(Captura, PapelConsole);
         if (principal == null)
             throw new InvalidOperationException("nenhum microfone encontrado.");
 
@@ -463,31 +466,57 @@ static class Microfone
         Guid contexto = Guid.Empty;
         principal.SetMute(!mudo, ref contexto);
         // O de comunicação (Teams, Zoom) pode ser outro microfone: segue o principal.
-        IAudioEndpointVolume comunicacao = Volume(PapelComunicacao);
+        IAudioEndpointVolume comunicacao = Volume(Captura, PapelComunicacao);
         if (comunicacao != null)
             comunicacao.SetMute(!mudo, ref contexto);
-        Mudo = !mudo;
+        MicrofoneMudo = !mudo;
     }
 
-    // Lê o estado atual. Retorna true se mudou desde a última leitura.
+    // Lê o estado atual. Retorna true se algo mudou desde a última leitura.
     public static bool Atualizar()
     {
-        IAudioEndpointVolume principal = Volume(PapelConsole);
-        bool mudo = false;
-        if (principal != null)
-            principal.GetMute(out mudo);
-        bool mudou = mudo != Mudo;
-        Mudo = mudo;
+        bool microfone = LerMudo(Captura);
+        bool som = LerMudo(Saida);
+        bool mudou = microfone != MicrofoneMudo || som != SomMudo;
+        MicrofoneMudo = microfone;
+        SomMudo = som;
         return mudou;
     }
 
-    static IAudioEndpointVolume Volume(int papel)
+    // A tecla de mudo do som é tratada pelo Windows logo depois de enviada.
+    public static void AtualizarEmSeguida()
+    {
+        ThreadPool.QueueUserWorkItem(estado =>
+        {
+            Thread.Sleep(150);
+            try
+            {
+                if (Atualizar())
+                    Painel.Redesenhar();
+            }
+            catch (Exception)
+            {
+                // A leitura periódica tenta de novo.
+            }
+        });
+    }
+
+    static bool LerMudo(int fluxo)
+    {
+        IAudioEndpointVolume volume = Volume(fluxo, PapelConsole);
+        bool mudo = false;
+        if (volume != null)
+            volume.GetMute(out mudo);
+        return mudo;
+    }
+
+    static IAudioEndpointVolume Volume(int fluxo, int papel)
     {
         try
         {
             var enumerador = (IMMDeviceEnumerator)new Enumerador();
             IMMDevice dispositivo;
-            enumerador.GetDefaultAudioEndpoint(Captura, papel, out dispositivo);
+            enumerador.GetDefaultAudioEndpoint(fluxo, papel, out dispositivo);
             Guid id = typeof(IAudioEndpointVolume).GUID;
             object volume;
             dispositivo.Activate(ref id, CLSCTX_ALL, IntPtr.Zero, out volume);
@@ -495,7 +524,7 @@ static class Microfone
         }
         catch (COMException)
         {
-            // Sem microfone ligado.
+            // Sem esse dispositivo ligado.
             return null;
         }
     }
@@ -666,7 +695,7 @@ static class Contadores
     public static StatusDoApp StatusDe(Botao botao)
     {
         if (botao.Acao == TipoAcao.MicrofoneMudo)
-            return Microfone.Mudo ? StatusDoApp.NaoIncomodar : StatusDoApp.Nenhum;
+            return Audio.MicrofoneMudo ? StatusDoApp.NaoIncomodar : StatusDoApp.Nenhum;
 
         Match status = Status.Match(TextoDe(botao));
         if (!status.Success)
@@ -735,7 +764,7 @@ static class Contadores
         bool mudou = false;
         try
         {
-            mudou = Microfone.Atualizar();
+            mudou = Audio.Atualizar();
         }
         catch (Exception)
         {
@@ -1548,17 +1577,32 @@ class Painel : Form
         }
     }
 
+    // Botões de dois estados ficam afundados quando ligados, como tecla com trava.
+    static bool Travado(Botao botao)
+    {
+        switch (botao.Acao)
+        {
+            case TipoAcao.MicrofoneMudo:
+                return Audio.MicrofoneMudo;
+            case TipoAcao.Mudo:
+                return Audio.SomMudo;
+            default:
+                return false;
+        }
+    }
+
     // Tecla em relevo: sombra na mesa, lateral escura e face com gradiente.
-    // Pressionada, a face desce sobre a lateral.
+    // Pressionada, a face desce sobre a lateral; travada, desce até a metade.
     void DesenharBotao(Graphics g, Botao botao, Rectangle area, bool pressionado, StringFormat alinhamento)
     {
         Color cor = Misturar(botao.CorReal(), Color.White, tema.ClarearBotao);
+        bool travado = !pressionado && Travado(botao);
 
         for (int i = CAMADAS_SOMBRA; i >= 1; i--)
         {
             Rectangle camada = new Rectangle(area.X - i, area.Y + i, area.Width + i * 2, area.Height + i);
             using (GraphicsPath forma = Arredondado(camada, RAIO_BOTAO + i))
-            using (var sombra = new SolidBrush(Color.FromArgb(pressionado ? 8 : 22, Color.Black)))
+            using (var sombra = new SolidBrush(Color.FromArgb(pressionado ? 8 : travado ? 14 : 22, Color.Black)))
                 g.FillPath(sombra, forma);
         }
 
@@ -1568,10 +1612,10 @@ class Painel : Form
         using (var fundo = new SolidBrush(Misturar(cor, Color.Black, 0.42f)))
             g.FillPath(fundo, forma);
 
-        int descida = pressionado ? ALTURA_TECLA - 2 : 0;
+        int descida = pressionado ? ALTURA_TECLA - 2 : travado ? ALTURA_TECLA / 2 : 0;
         Rectangle face = new Rectangle(area.X, area.Y + descida, area.Width, altura);
-        Color topo = Misturar(cor, Color.White, pressionado ? 0.02f : 0.12f);
-        Color base_ = Misturar(cor, Color.Black, pressionado ? 0.14f : 0.05f);
+        Color topo = Misturar(cor, Color.White, pressionado ? 0.02f : travado ? 0.04f : 0.12f);
+        Color base_ = Misturar(cor, Color.Black, pressionado ? 0.14f : travado ? 0.12f : 0.05f);
         using (GraphicsPath forma = Arredondado(face, RAIO_BOTAO))
         using (var fundo = new LinearGradientBrush(face, topo, base_, LinearGradientMode.Vertical))
             g.FillPath(fundo, forma);
@@ -1653,7 +1697,7 @@ class Painel : Form
     // Com o microfone mudo, usa a versão "-off" do ícone (mdi-microphone-off.svg), se existir.
     static string IconeDoEstado(Botao botao)
     {
-        if (botao.Acao != TipoAcao.MicrofoneMudo || !Microfone.Mudo || string.IsNullOrEmpty(botao.Icone))
+        if (botao.Acao != TipoAcao.MicrofoneMudo || !Audio.MicrofoneMudo || string.IsNullOrEmpty(botao.Icone))
             return botao.Icone;
         string desligado = Path.Combine(Path.GetDirectoryName(botao.Icone),
             Path.GetFileNameWithoutExtension(botao.Icone) + "-off" + Path.GetExtension(botao.Icone));
