@@ -1144,7 +1144,6 @@ class Painel : Form
     const int ALTURA_TECLA = 9;
     const int CAMADAS_SOMBRA = 4;
     const float PROPORCAO_ICONE = 0.48f;
-    const float PROPORCAO_SO_ICONE = 0.62f;
     const float PROPORCAO_ICONE_AO_LADO = 0.42f;
     static readonly Color COR_CONTADOR = Color.FromArgb(0xE5, 0x48, 0x4D);
 
@@ -1157,6 +1156,8 @@ class Painel : Form
     readonly NotifyIcon iconeBandeja = new NotifyIcon();
     readonly Dictionary<int, int> toquesAtivos = new Dictionary<int, int>();
     Font fonte;
+    // Um tamanho só para os ícones de todos os botões, calculado com a fonte.
+    int ladoDoIcone;
     Tema tema = TemaEscolhido();
     bool janelaNaTela;
     readonly VeuDeBrilho veu = new VeuDeBrilho();
@@ -1663,6 +1664,14 @@ class Painel : Form
         float pelaLargura = (area.Width / (float)casas - c.EspacoEntreBotoes) * 0.07f;
         float tamanho = Math.Max(14f, Math.Min(pelaAltura, pelaLargura) * c.EscalaFonte / 100f);
         fonte = new Font(c.Fonte, tamanho, GraphicsUnit.Pixel);
+
+        // Pela face de uma casa inteira, para botões de larguras diferentes terem o mesmo ícone.
+        int linhas = Linhas();
+        int espaco = c.EspacoEntreBotoes;
+        int alturaDaFace = (area.Height - espaco * (linhas + 1)) / linhas - ALTURA_TECLA;
+        int larguraDaCasa = (int)((area.Width - espaco) / (float)casas) - espaco;
+        float proporcao = c.IconeAoLado ? PROPORCAO_ICONE_AO_LADO : PROPORCAO_ICONE;
+        ladoDoIcone = Math.Max(8, Math.Min((int)(alturaDaFace * proporcao), larguraDaCasa / 6));
     }
 
     protected override void OnResize(EventArgs e)
@@ -1752,8 +1761,7 @@ class Painel : Form
         if (temIcone && temRotulo && Configuracoes.Atual.IconeAoLado)
         {
             // Ícone e texto formam um bloco centralizado, com o ícone à esquerda.
-            // Em botão alto e estreito (grade fluida), a largura também limita o ícone.
-            int lado = Math.Min((int)(face.Height * PROPORCAO_ICONE_AO_LADO), face.Width / 6);
+            int lado = ladoDoIcone;
             int folga = lado / 3;
             int margem = Math.Min(face.Height / 5, face.Width / 12);
             int maximo = Math.Max(1, face.Width - lado - folga - margem * 2);
@@ -1764,7 +1772,7 @@ class Painel : Form
         }
         else if (temIcone)
         {
-            int lado = (int)(face.Height * (temRotulo ? PROPORCAO_ICONE : PROPORCAO_SO_ICONE));
+            int lado = ladoDoIcone;
             int y = temRotulo ? face.Y + face.Height / 10 : face.Y + (face.Height - lado) / 2;
             Icones.Desenhar(g, icone, new Rectangle(face.X, y, face.Width, lado), tema.TextoBotao);
             areaDoTexto = new Rectangle(face.X, y + lado, face.Width, face.Bottom - y - lado);
