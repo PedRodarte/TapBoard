@@ -1140,6 +1140,7 @@ class Painel : Form
     const int NENHUM = -1;
     const int ID_MOUSE = -1;
     const int RAIO_BOTAO = 18;
+    const int CORTE_DA_TECLA = 2;
     const int ALTURA_TECLA = 9;
     const int CAMADAS_SOMBRA = 4;
     const float PROPORCAO_ICONE = 0.48f;
@@ -1584,6 +1585,31 @@ class Painel : Form
     }
 
     // As linhas escolhidas na grade, ou mais, se os botões não couberem nelas.
+    enum Metade
+    {
+        Nenhuma,
+        Esquerda,
+        Direita,
+    }
+
+    // Dois botões de meia casa seguidos, na mesma linha, formam uma tecla partida ao meio.
+    Metade[] Metades(int colunas)
+    {
+        List<Botao> botoes = Configuracoes.Atual.Botoes;
+        Point[] posicoes = PosicoesNaGrade(colunas);
+        var metades = new Metade[botoes.Count];
+        for (int i = 0; i + 1 < botoes.Count; i++)
+        {
+            if (metades[i] != Metade.Nenhuma || Ocupadas(botoes[i], colunas) != 1 || Ocupadas(botoes[i + 1], colunas) != 1)
+                continue;
+            if (posicoes[i + 1].Y != posicoes[i].Y || posicoes[i + 1].X != posicoes[i].X + 1)
+                continue;
+            metades[i] = Metade.Esquerda;
+            metades[i + 1] = Metade.Direita;
+        }
+        return metades;
+    }
+
     int Linhas()
     {
         Point[] posicoes = PosicoesNaGrade(ColunasDaGrade());
@@ -1601,10 +1627,22 @@ class Painel : Form
         Point posicao = PosicoesNaGrade(colunas)[indice];
         int ocupadas = Ocupadas(Configuracoes.Atual.Botoes[indice], colunas);
 
+        // Metade de tecla partida: as duas dividem a casa, separadas só pelo corte.
+        Metade metade = Metades(colunas)[indice];
+        if (metade == Metade.Direita)
+            posicao.X--;
+        if (metade != Metade.Nenhuma)
+            ocupadas = 2;
+
         // Fração por coluna, para a sobra não se acumular na borda direita.
         double coluna = (area.Width - espaco) / (double)colunas;
         int esquerda = area.X + espaco + (int)Math.Round(posicao.X * coluna);
         int direita = area.X + (int)Math.Round((posicao.X + ocupadas) * coluna);
+        int meio = (esquerda + direita) / 2;
+        if (metade == Metade.Esquerda)
+            direita = meio - CORTE_DA_TECLA / 2;
+        else if (metade == Metade.Direita)
+            esquerda = meio + (CORTE_DA_TECLA + 1) / 2;
         return new Rectangle(
             esquerda,
             area.Y + espaco + posicao.Y * (altura + espaco),
@@ -1647,8 +1685,9 @@ class Painel : Form
             alinhamento.LineAlignment = StringAlignment.Center;
 
             List<Botao> botoes = Configuracoes.Atual.Botoes;
+            Metade[] metades = Metades(ColunasDaGrade());
             for (int i = 0; i < botoes.Count; i++)
-                DesenharBotao(g, botoes[i], RetanguloDoBotao(i), toquesAtivos.ContainsValue(i), alinhamento);
+                DesenharBotao(g, botoes[i], RetanguloDoBotao(i), metades[i], toquesAtivos.ContainsValue(i), alinhamento);
         }
     }
 
@@ -1668,22 +1707,25 @@ class Painel : Form
 
     // Tecla em relevo: sombra na mesa, lateral escura e face com gradiente.
     // Pressionada, a face desce sobre a lateral; travada, desce até a metade.
-    void DesenharBotao(Graphics g, Botao botao, Rectangle area, bool pressionado, StringFormat alinhamento)
+    void DesenharBotao(Graphics g, Botao botao, Rectangle area, Metade metade, bool pressionado, StringFormat alinhamento)
     {
         Color cor = Misturar(botao.CorReal(), Color.White, tema.ClarearBotao);
         bool travado = !pressionado && Travado(botao);
 
+        // Na tecla partida, a sombra não avança sobre a outra metade.
         for (int i = CAMADAS_SOMBRA; i >= 1; i--)
         {
-            Rectangle camada = new Rectangle(area.X - i, area.Y + i, area.Width + i * 2, area.Height + i);
-            using (GraphicsPath forma = Arredondado(camada, RAIO_BOTAO + i))
+            int antes = metade == Metade.Direita ? 0 : i;
+            int depois = metade == Metade.Esquerda ? 0 : i;
+            Rectangle camada = new Rectangle(area.X - antes, area.Y + i, area.Width + antes + depois, area.Height + i);
+            using (GraphicsPath forma = Arredondado(camada, RAIO_BOTAO + i, metade))
             using (var sombra = new SolidBrush(Color.FromArgb(pressionado ? 8 : travado ? 14 : 22, Color.Black)))
                 g.FillPath(sombra, forma);
         }
 
         int altura = area.Height - ALTURA_TECLA;
         Rectangle lateral = new Rectangle(area.X, area.Bottom - altura, area.Width, altura);
-        using (GraphicsPath forma = Arredondado(lateral, RAIO_BOTAO))
+        using (GraphicsPath forma = Arredondado(lateral, RAIO_BOTAO, metade))
         using (var fundo = new SolidBrush(Misturar(cor, Color.Black, 0.42f)))
             g.FillPath(fundo, forma);
 
@@ -1691,12 +1733,12 @@ class Painel : Form
         Rectangle face = new Rectangle(area.X, area.Y + descida, area.Width, altura);
         Color topo = travado ? Misturar(cor, Color.Black, 0.22f) : Misturar(cor, Color.White, pressionado ? 0.02f : 0.12f);
         Color base_ = Misturar(cor, Color.Black, pressionado ? 0.14f : travado ? 0.32f : 0.05f);
-        using (GraphicsPath forma = Arredondado(face, RAIO_BOTAO))
+        using (GraphicsPath forma = Arredondado(face, RAIO_BOTAO, metade))
         using (var fundo = new LinearGradientBrush(face, topo, base_, LinearGradientMode.Vertical))
             g.FillPath(fundo, forma);
 
         Rectangle aro = Rectangle.Inflate(face, -1, -1);
-        using (GraphicsPath forma = Arredondado(aro, RAIO_BOTAO - 1))
+        using (GraphicsPath forma = Arredondado(aro, RAIO_BOTAO - 1, metade))
         using (var brilho = new LinearGradientBrush(
             aro, Color.FromArgb(120, Color.White), Color.FromArgb(0, Color.White), LinearGradientMode.Vertical))
         using (var caneta = new Pen(brilho, 2f))
@@ -1704,7 +1746,8 @@ class Painel : Form
 
         string icone = IconeDoEstado(botao);
         bool temIcone = !string.IsNullOrEmpty(icone);
-        bool temRotulo = !string.IsNullOrWhiteSpace(botao.Rotulo);
+        // Botão de meia casa com ícone mostra só o ícone; o rótulo fica para a lista.
+        bool temRotulo = !string.IsNullOrWhiteSpace(botao.Rotulo) && !(temIcone && botao.MeiasCasas() == 1);
         Rectangle areaDoTexto = face;
         if (temIcone && temRotulo && Configuracoes.Atual.IconeAoLado)
         {
@@ -1829,12 +1872,31 @@ class Painel : Form
 
     static GraphicsPath Arredondado(Rectangle r, int raio)
     {
+        return Arredondado(r, raio, Metade.Nenhuma);
+    }
+
+    // Na metade de uma tecla partida, os cantos do lado do corte são retos.
+    static GraphicsPath Arredondado(Rectangle r, int raio, Metade metade)
+    {
         int d = raio * 2;
+        bool esquerdaReta = metade == Metade.Direita;
+        bool direitaReta = metade == Metade.Esquerda;
         var forma = new GraphicsPath();
-        forma.AddArc(r.Left, r.Top, d, d, 180, 90);
-        forma.AddArc(r.Right - d, r.Top, d, d, 270, 90);
-        forma.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-        forma.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
+        if (esquerdaReta)
+            forma.AddLine(r.Left, r.Top, r.Left, r.Top);
+        else
+            forma.AddArc(r.Left, r.Top, d, d, 180, 90);
+        if (direitaReta)
+            forma.AddLine(r.Right, r.Top, r.Right, r.Bottom);
+        else
+        {
+            forma.AddArc(r.Right - d, r.Top, d, d, 270, 90);
+            forma.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+        }
+        if (esquerdaReta)
+            forma.AddLine(r.Left, r.Bottom, r.Left, r.Bottom);
+        else
+            forma.AddArc(r.Left, r.Bottom - d, d, d, 90, 90);
         forma.CloseFigure();
         return forma;
     }
