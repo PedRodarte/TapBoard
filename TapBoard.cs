@@ -505,6 +505,7 @@ class Painel : Form
     const int CAMADAS_SOMBRA = 4;
     const float PROPORCAO_ICONE = 0.48f;
     const float PROPORCAO_SO_ICONE = 0.62f;
+    const float PROPORCAO_ICONE_AO_LADO = 0.42f;
 
     [DllImport("dwmapi.dll")]
     static extern int DwmSetWindowAttribute(IntPtr janela, int atributo, ref int valor, int tamanho);
@@ -1004,7 +1005,19 @@ class Painel : Form
         bool temIcone = !string.IsNullOrEmpty(botao.Icone);
         bool temRotulo = !string.IsNullOrWhiteSpace(botao.Rotulo);
         Rectangle areaDoTexto = face;
-        if (temIcone)
+        if (temIcone && temRotulo && Configuracoes.Atual.IconeAoLado)
+        {
+            // Ícone e texto formam um bloco centralizado, com o ícone à esquerda.
+            int lado = (int)(face.Height * PROPORCAO_ICONE_AO_LADO);
+            int folga = lado / 3;
+            int margem = face.Height / 5;
+            int maximo = Math.Max(1, face.Width - lado - folga - margem * 2);
+            int largura = Math.Min(maximo, (int)Math.Ceiling(g.MeasureString(botao.Rotulo, fonte).Width));
+            int x = face.X + (face.Width - lado - folga - largura) / 2;
+            Icones.Desenhar(g, botao.Icone, new Rectangle(x, face.Y + (face.Height - lado) / 2, lado, lado), tema.TextoBotao);
+            areaDoTexto = new Rectangle(x + lado + folga, face.Y, largura, face.Height);
+        }
+        else if (temIcone)
         {
             int lado = (int)(face.Height * (temRotulo ? PROPORCAO_ICONE : PROPORCAO_SO_ICONE));
             int y = temRotulo ? face.Y + face.Height / 10 : face.Y + (face.Height - lado) / 2;

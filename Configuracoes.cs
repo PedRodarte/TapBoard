@@ -104,6 +104,7 @@ public class Configuracoes
     public string Fonte = Padrao.Fonte;
     public int EscalaFonte = 100;
     public int EspacoEntreBotoes = Padrao.Espaco;
+    public bool IconeAoLado = true;
     public bool SempreVisivel = true;
     public bool BrilhoDeckPorSoftware = true;
     public int BrilhoDeck = 100;
@@ -280,6 +281,7 @@ class JanelaConfiguracoes : Form
     readonly ComboBox comboTela = Combo("comboTela");
     readonly ComboBox comboModo = Combo("comboModo");
     readonly ComboBox comboTema = Combo("comboTema");
+    readonly ComboBox comboIcone = Combo("comboIcone");
     readonly ComboBox comboAcao = Combo("comboAcao");
     readonly ComboBox comboFonte = Combo("comboFonte");
     readonly ComboBox comboLargura = Combo("comboLargura");
@@ -374,9 +376,11 @@ class JanelaConfiguracoes : Form
         grade.Controls.Add(campoEscala, 1, 4);
         grade.Controls.Add(Legenda("Espaço entre botões (px)"), 0, 5);
         grade.Controls.Add(campoEspaco, 1, 5);
-        grade.Controls.Add(caixaInicio, 1, 6);
-        grade.Controls.Add(caixaSempreVisivel, 1, 7);
-        grade.Controls.Add(caixaBrilhoSoftware, 1, 8);
+        grade.Controls.Add(Legenda("Ícone com texto"), 0, 6);
+        grade.Controls.Add(comboIcone, 1, 6);
+        grade.Controls.Add(caixaInicio, 1, 7);
+        grade.Controls.Add(caixaSempreVisivel, 1, 8);
+        grade.Controls.Add(caixaBrilhoSoftware, 1, 9);
 
         var grupo = new GroupBox { Text = "Geral", Dock = DockStyle.Fill };
         grupo.Controls.Add(grade);
@@ -538,6 +542,10 @@ class JanelaConfiguracoes : Form
         comboTema.Items.Add(new Opcao(EscolhaDeTema.Claro, "Claro"));
         comboTema.Items.Add(new Opcao(EscolhaDeTema.Escuro, "Escuro"));
         Selecionar(comboTema, copia.Tema);
+
+        comboIcone.Items.Add(new Opcao(true, "À esquerda do texto"));
+        comboIcone.Items.Add(new Opcao(false, "Acima do texto"));
+        Selecionar(comboIcone, copia.IconeAoLado);
 
         foreach (FontFamily familia in FontFamily.Families)
             comboFonte.Items.Add(new Opcao(familia.Name, familia.Name));
@@ -762,6 +770,7 @@ class JanelaConfiguracoes : Form
         copia.TelaDoDeck = (string)Valor(comboTela);
         copia.AbrirEmJanela = (bool)Valor(comboModo);
         copia.Tema = (EscolhaDeTema)Valor(comboTema);
+        copia.IconeAoLado = (bool)Valor(comboIcone);
         copia.Fonte = (string)Valor(comboFonte);
         copia.EscalaFonte = (int)campoEscala.Value;
         copia.EspacoEntreBotoes = (int)campoEspaco.Value;
