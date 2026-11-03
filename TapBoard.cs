@@ -895,14 +895,30 @@ static class Brilho
 {
     const byte VCP_BRILHO = 0x10;
     const uint MONITOR_DEFAULTTONEAREST = 2;
-    const int TENTATIVAS = 3;
+    const int TENTATIVAS = 5;
 
-    const int PAUSA_ENTRE_TENTATIVAS = 50;
+    const int PAUSA_ENTRE_TENTATIVAS = 80;
     const int BaseDoDeck = 100;
 
     static readonly object trava = new object();
     static readonly Queue<Action> fila = new Queue<Action>();
     static bool processando;
+
+    // Pedido de brilho que ainda espera na fila. Toques seguidos no mesmo alvo se
+    // juntam nele: cada comando DDC leva centenas de ms, e descer até o limite com
+    // vários -10 deixava o 100% esperando segundos atrás deles.
+    class Pedido
+    {
+        public AlvoDoBrilho Alvo;
+        public bool Relativo;
+        public int Valor;
+    }
+
+    static Pedido pendente;
+
+    // Logo depois de um salto grande o monitor fica ocupado e não responde à leitura.
+    // Para um valor fixo a leitura só serve para saber o máximo, que quase nunca muda.
+    static int ultimoMaximo = 100;
 
     [StructLayout(LayoutKind.Sequential)]
     struct POINT
@@ -940,18 +956,43 @@ static class Brilho
     // O DDC/CI é lento: roda fora da interface, um comando por vez.
     public static void Enfileirar(AlvoDoBrilho alvo, bool relativo, int valor)
     {
+        lock (trava)
+        {
+            if (pendente != null && pendente.Alvo == alvo)
+            {
+                if (relativo)
+                {
+                    pendente.Valor += valor;
+                }
+                else
+                {
+                    pendente.Relativo = false;
+                    pendente.Valor = valor;
+                }
+                return;
+            }
+        }
+
+        var pedido = new Pedido { Alvo = alvo, Relativo = relativo, Valor = valor };
         Pedir(() =>
         {
-            if (!Aplicar(alvo, relativo, valor))
+            lock (trava)
+            {
+                if (pendente == pedido)
+                    pendente = null;
+            }
+            if (!Aplicar(pedido.Alvo, pedido.Relativo, pedido.Valor))
                 Painel.Avisar("Não consegui ajustar o brilho de todos os monitores escolhidos.");
-        });
+        }, pedido);
     }
 
-    static void Pedir(Action comando)
+    static void Pedir(Action comando, Pedido pedido = null)
     {
         lock (trava)
         {
             fila.Enqueue(comando);
+            if (pedido != null)
+                pendente = pedido;
             if (processando)
                 return;
             processando = true;
@@ -1058,8 +1099,12 @@ static class Brilho
             if (!leu)
                 Thread.Sleep(PAUSA_ENTRE_TENTATIVAS);
         }
-        if (!leu)
+        if (leu && maximo > 0)
+            ultimoMaximo = (int)maximo;
+        else if (relativo)
             return false;
+        else
+            maximo = (uint)ultimoMaximo;
 
         // O alvo é calculado uma vez só: repetir a leitura somaria o passo de novo.
         int passo = valor * (int)maximo / 100;
