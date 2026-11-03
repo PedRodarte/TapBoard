@@ -136,7 +136,7 @@ grade fluida: cabem tantos botões por linha quantos a "Largura mínima" permiti
 então um painel mais largo ganha colunas e um mais estreito perde. Linhas em Auto
 são só as que os botões precisam; com um número, sobram linhas vazias para botões
 novos. Se os botões não couberem, o painel ganha as linhas que faltarem. A largura de cada botão é contada em casas
-(1, 2 ou 3) ou "Linha inteira". O texto e o ícone diminuem se o botão ficar estreito.
+(meia, 1, 2 ou 3) ou "Linha inteira"; dois botões de meia casa dividem uma casa. O texto e o ícone diminuem se o botão ficar estreito.
 
 ## Roadmap (ideias futuras, por ordem aproximada)
 

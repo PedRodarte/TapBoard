@@ -67,11 +67,20 @@ public class Botao
         Parametro = parametro;
     }
 
-    // Como no Bootstrap: múltiplos de 3 das 12 colunas. Outro valor no arquivo sobe para o próximo.
+    // Como no Bootstrap: múltiplos de 3 das 12 colunas, e 1 para meia casa.
+    // Outro valor no arquivo sobe para o próximo.
     public int LarguraNaGrade()
     {
+        if (Largura == 1)
+            return 1;
         int limitada = Math.Max(1, Math.Min(Padrao.Colunas, Largura));
         return (limitada + Padrao.PassoDaGrade - 1) / Padrao.PassoDaGrade * Padrao.PassoDaGrade;
+    }
+
+    public int MeiasCasas()
+    {
+        int largura = LarguraNaGrade();
+        return largura == 1 ? 1 : largura / Padrao.PassoDaGrade * 2;
     }
 
     public Color CorReal()
@@ -272,6 +281,7 @@ class JanelaConfiguracoes : Form
 
     static readonly Opcao[] OpcoesDeLargura =
     {
+        new Opcao(1, "Meia casa"),
         new Opcao(3, "1 casa"),
         new Opcao(6, "2 casas"),
         new Opcao(9, "3 casas"),

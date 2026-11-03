@@ -1534,23 +1534,25 @@ class Painel : Form
         return ClientRectangle;
     }
 
-    // Na grade fluida, cada casa (3 colunas) tem pelo menos a largura mínima do botão:
+    // A grade é contada em meias casas, para caber o botão de meia casa.
+    // Na grade fluida, cada casa tem pelo menos a largura mínima do botão:
     // painel mais largo, mais botões por linha. Na fixa, o número escolhido de casas.
     int ColunasDaGrade()
     {
         Configuracoes c = Configuracoes.Atual;
         if (!c.GradeFluida)
-            return Math.Max(1, Math.Min(10, c.BotoesPorLinha)) * Padrao.PassoDaGrade;
+            return Math.Max(1, Math.Min(10, c.BotoesPorLinha)) * 2;
         int espaco = c.EspacoEntreBotoes;
         int casas = (AreaDosBotoes().Width - espaco) / (Math.Max(40, c.LarguraMinimaDoBotao) + espaco);
-        return Math.Max(1, casas) * Padrao.PassoDaGrade;
+        return Math.Max(1, casas) * 2;
     }
 
     // "Linha inteira" ocupa a linha toda; os outros, até o que couber na linha.
     static int Ocupadas(Botao botao, int colunas)
     {
-        int largura = botao.LarguraNaGrade();
-        return largura >= Padrao.Colunas ? colunas : Math.Min(largura, colunas);
+        if (botao.LarguraNaGrade() >= Padrao.Colunas)
+            return colunas;
+        return Math.Min(botao.MeiasCasas(), colunas);
     }
 
     int BotaoEm(Point posicao)
@@ -1561,7 +1563,7 @@ class Painel : Form
         return NENHUM;
     }
 
-    // Cada botão ocupa 3, 6, 9 ou 12 colunas; se não couber, desce para a linha seguinte.
+    // Cada botão ocupa de meia a quatro casas; se não couber, desce para a linha seguinte.
     static Point[] PosicoesNaGrade(int colunas)
     {
         List<Botao> botoes = Configuracoes.Atual.Botoes;
@@ -1618,7 +1620,7 @@ class Painel : Form
         // Pela altura da linha, mas sem passar do que cabe na largura de uma casa:
         // na grade fluida larga as linhas ficam altas e o texto quebraria no meio das palavras.
         Rectangle area = AreaDosBotoes();
-        int casas = ColunasDaGrade() / Padrao.PassoDaGrade;
+        int casas = Math.Max(1, ColunasDaGrade() / 2);
         float pelaAltura = area.Height / Linhas() * 0.16f;
         float pelaLargura = (area.Width / (float)casas - c.EspacoEntreBotoes) * 0.07f;
         float tamanho = Math.Max(14f, Math.Min(pelaAltura, pelaLargura) * c.EscalaFonte / 100f);
