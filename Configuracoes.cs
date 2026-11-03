@@ -306,6 +306,7 @@ class JanelaConfiguracoes : Form
         this.tema = tema;
 
         Text = "Configurações do TapBoard";
+        Icon = IconeDoApp.Janela();
         Font = new Font("Segoe UI", 10f);
         StartPosition = FormStartPosition.Manual;
         Size = new Size(960, 680);

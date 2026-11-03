@@ -520,6 +520,7 @@ class JanelaIcones : Form
         this.tema = tema;
 
         Text = "Buscar ícone";
+        Icon = IconeDoApp.Janela();
         Font = new Font("Segoe UI", 10f);
         StartPosition = FormStartPosition.CenterParent;
         Size = new Size(720, 560);

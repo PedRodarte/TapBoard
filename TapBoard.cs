@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
@@ -243,6 +244,35 @@ static class Acoes
                 Painel.AbrirConfiguracoes();
                 break;
         }
+    }
+}
+
+// Ícone do TapBoard, embutido no .exe pelo build.cmd (/resource:TapBoard.ico).
+static class IconeDoApp
+{
+    static readonly byte[] Dados = Ler();
+
+    static byte[] Ler()
+    {
+        using (Stream entrada = typeof(IconeDoApp).Assembly.GetManifestResourceStream("TapBoard.ico"))
+        {
+            if (entrada == null)
+                return null;
+            var memoria = new MemoryStream();
+            entrada.CopyTo(memoria);
+            return memoria.ToArray();
+        }
+    }
+
+    // Janelas: o Windows escolhe o tamanho certo para a barra de título e de tarefas.
+    public static Icon Janela()
+    {
+        return Dados == null ? SystemIcons.Application : new Icon(new MemoryStream(Dados));
+    }
+
+    public static Icon Bandeja()
+    {
+        return Dados == null ? SystemIcons.Application : new Icon(new MemoryStream(Dados), SystemInformation.SmallIconSize);
     }
 }
 
@@ -525,6 +555,7 @@ class Painel : Form
         instancia = this;
 
         Text = "TapBoard";
+        Icon = IconeDoApp.Janela();
         StartPosition = FormStartPosition.Manual;
         BackColor = tema.Fundo;
         AutoScaleMode = AutoScaleMode.None;
@@ -537,7 +568,7 @@ class Painel : Form
         menu.Items.Add("Janela / Tela cheia", null, (s, e) => AlternarJanela());
         menu.Items.Add("Tema claro / escuro", null, (s, e) => AlternarTema());
         menu.Items.Add("Sair do TapBoard", null, (s, e) => Application.Exit());
-        iconeBandeja.Icon = SystemIcons.Application;
+        iconeBandeja.Icon = IconeDoApp.Bandeja();
         iconeBandeja.Text = "TapBoard";
         iconeBandeja.ContextMenuStrip = menu;
         iconeBandeja.Visible = true;

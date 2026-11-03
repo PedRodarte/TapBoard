@@ -50,6 +50,8 @@ escuro** alterna na hora e a escolha fica salva.
   é gerado e fica fora do Git.
 - Código: `TapBoard.cs` (painel e ações), `Configuracoes.cs` (dados salvos e janela
   de configurações) e `Icones.cs` (leitor de SVG e busca de ícones).
+- O ícone do programa é o `TapBoard.ico`, embutido no .exe pelo `build.cmd`. Ele é
+  gerado pelo `gerar-icone.ps1`, que só precisa rodar de novo se o desenho mudar.
 - Internet só na busca de ícones, pela API gratuita da [Iconify](https://iconify.design),
   sem chave. A busca fica limitada às coleções Lucide (ISC), Tabler e Phosphor
   (MIT) e Material Design Icons (Apache 2.0).
@@ -93,11 +95,13 @@ escuro** alterna na hora e a escolha fica salva.
 
 ## Roadmap (ideias futuras, por ordem aproximada)
 
-1. Páginas e pastas de botões (navegação dentro do deck)
-2. Slider de brilho arrastável pelo toque
-3. Perfis por app em foco (troca de página conforme o executável ativo no monitor principal)
-4. Mutar o microfone com indicador de estado no botão
-5. Controle de OBS (WebSocket) e Discord
+1. Modelos de cores prontos para escolher nas configurações: Escuro (botões pretos
+   com um detalhe de cor por grupo), Terrosa (a atual) e Neon (todas as cores vivas)
+2. Páginas e pastas de botões (navegação dentro do deck)
+3. Slider de brilho arrastável pelo toque
+4. Perfis por app em foco (troca de página conforme o executável ativo no monitor principal)
+5. Mutar o microfone com indicador de estado no botão
+6. Controle de OBS (WebSocket) e Discord
 
 ## Regras para o Claude neste projeto
 
