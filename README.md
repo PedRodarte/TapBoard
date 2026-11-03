@@ -157,6 +157,13 @@ hora. Tem busca no topo e duas abas:
 - **Macros e personalizados**: modelos de atalho, sequência de teclas, texto,
   programa, site, comando e brilho. Tocar num deles cria o botão e abre o editor.
 
+O mudo do microfone vale para o microfone padrão e o de comunicação, em qualquer
+app. Com o microfone mudo, o botão mostra uma bolinha vermelha e a versão "-off" do
+ícone, se existir (`mdi-microphone-off` para `mdi-microphone`).
+
+Botões de dois estados (mudo do som e do microfone) ficam afundados pela metade
+enquanto estão ligados, como uma tecla com trava.
+
 ### Grade
 
 No topo de Configurações > Geral fica o tamanho da grade, em colunas × linhas
