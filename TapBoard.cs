@@ -337,6 +337,7 @@ static class Acoes
                 break;
             case TipoAcao.MicrofoneMudo:
                 Microfone.Alternar();
+                Painel.Redesenhar();
                 break;
             case TipoAcao.Abrir:
                 string alvo = Environment.ExpandEnvironmentVariables(botao.Parametro);
@@ -1195,6 +1196,12 @@ class Painel : Form
         Brilho.AncorarDeck();
     }
 
+    public static void Redesenhar()
+    {
+        if (instancia != null && instancia.IsHandleCreated)
+            instancia.BeginInvoke((Action)instancia.Invalidate);
+    }
+
     public static void Avisar(string mensagem)
     {
         instancia.BeginInvoke((Action)(() =>
@@ -1576,7 +1583,8 @@ class Painel : Form
         using (var caneta = new Pen(brilho, 2f))
             g.DrawPath(caneta, forma);
 
-        bool temIcone = !string.IsNullOrEmpty(botao.Icone);
+        string icone = IconeDoEstado(botao);
+        bool temIcone = !string.IsNullOrEmpty(icone);
         bool temRotulo = !string.IsNullOrWhiteSpace(botao.Rotulo);
         Rectangle areaDoTexto = face;
         if (temIcone && temRotulo && Configuracoes.Atual.IconeAoLado)
@@ -1588,14 +1596,14 @@ class Painel : Form
             int maximo = Math.Max(1, face.Width - lado - folga - margem * 2);
             int largura = Math.Min(maximo, (int)Math.Ceiling(g.MeasureString(botao.Rotulo, fonte).Width));
             int x = face.X + (face.Width - lado - folga - largura) / 2;
-            Icones.Desenhar(g, botao.Icone, new Rectangle(x, face.Y + (face.Height - lado) / 2, lado, lado), tema.TextoBotao);
+            Icones.Desenhar(g, icone, new Rectangle(x, face.Y + (face.Height - lado) / 2, lado, lado), tema.TextoBotao);
             areaDoTexto = new Rectangle(x + lado + folga, face.Y, largura, face.Height);
         }
         else if (temIcone)
         {
             int lado = (int)(face.Height * (temRotulo ? PROPORCAO_ICONE : PROPORCAO_SO_ICONE));
             int y = temRotulo ? face.Y + face.Height / 10 : face.Y + (face.Height - lado) / 2;
-            Icones.Desenhar(g, botao.Icone, new Rectangle(face.X, y, face.Width, lado), tema.TextoBotao);
+            Icones.Desenhar(g, icone, new Rectangle(face.X, y, face.Width, lado), tema.TextoBotao);
             areaDoTexto = new Rectangle(face.X, y + lado, face.Width, face.Bottom - y - lado);
         }
 
@@ -1640,6 +1648,16 @@ class Painel : Form
             using (var branco = new SolidBrush(Color.White))
                 g.DrawString(texto, letra, branco, bolha, formato);
         }
+    }
+
+    // Com o microfone mudo, usa a versão "-off" do ícone (mdi-microphone-off.svg), se existir.
+    static string IconeDoEstado(Botao botao)
+    {
+        if (botao.Acao != TipoAcao.MicrofoneMudo || !Microfone.Mudo || string.IsNullOrEmpty(botao.Icone))
+            return botao.Icone;
+        string desligado = Path.Combine(Path.GetDirectoryName(botao.Icone),
+            Path.GetFileNameWithoutExtension(botao.Icone) + "-off" + Path.GetExtension(botao.Icone));
+        return File.Exists(desligado) ? desligado : botao.Icone;
     }
 
     // Bolinha de status no canto da face, nas cores e símbolos do Teams.
