@@ -130,10 +130,12 @@ enquanto estão ligados, como uma tecla com trava.
 
 ### Grade
 
-Por padrão são 4 botões por linha. Em Configurações > Geral, "Botões por linha:
-Conforme a largura do painel" liga a grade fluida: cabem tantos botões por linha
-quantos a "Largura mínima do botão" permitir, então um painel mais largo ganha
-colunas e um mais estreito perde. A largura de cada botão é contada em casas
+No topo de Configurações > Geral fica o tamanho da grade, em colunas × linhas
+(4 × Auto por padrão). Cada um aceita de 1 a 10 ou "Auto". Colunas em Auto ligam a
+grade fluida: cabem tantos botões por linha quantos a "Largura mínima" permitir,
+então um painel mais largo ganha colunas e um mais estreito perde. Linhas em Auto
+são só as que os botões precisam; com um número, sobram linhas vazias para botões
+novos. Se os botões não couberem, o painel ganha as linhas que faltarem. A largura de cada botão é contada em casas
 (1, 2 ou 3) ou "Linha inteira". O texto e o ícone diminuem se o botão ficar estreito.
 
 ## Roadmap (ideias futuras, por ordem aproximada)

@@ -1490,12 +1490,12 @@ class Painel : Form
     }
 
     // Na grade fluida, cada casa (3 colunas) tem pelo menos a largura mínima do botão:
-    // painel mais largo, mais botões por linha. Na fixa, são sempre 12 colunas.
+    // painel mais largo, mais botões por linha. Na fixa, o número escolhido de casas.
     int ColunasDaGrade()
     {
         Configuracoes c = Configuracoes.Atual;
         if (!c.GradeFluida)
-            return Padrao.Colunas;
+            return Math.Max(1, Math.Min(10, c.BotoesPorLinha)) * Padrao.PassoDaGrade;
         int espaco = c.EspacoEntreBotoes;
         int casas = (AreaDosBotoes().Width - espaco) / (Math.Max(40, c.LarguraMinimaDoBotao) + espaco);
         return Math.Max(1, casas) * Padrao.PassoDaGrade;
@@ -1536,10 +1536,12 @@ class Painel : Form
         return posicoes;
     }
 
+    // As linhas escolhidas na grade, ou mais, se os botões não couberem nelas.
     int Linhas()
     {
         Point[] posicoes = PosicoesNaGrade(ColunasDaGrade());
-        return posicoes.Length == 0 ? 1 : posicoes[posicoes.Length - 1].Y + 1;
+        int usadas = posicoes.Length == 0 ? 1 : posicoes[posicoes.Length - 1].Y + 1;
+        return Math.Max(usadas, Math.Min(10, Configuracoes.Atual.LinhasDaGrade));
     }
 
     Rectangle RetanguloDoBotao(int indice)

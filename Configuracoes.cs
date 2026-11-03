@@ -108,6 +108,8 @@ public class Configuracoes
     public int EscalaFonte = 100;
     public int EspacoEntreBotoes = Padrao.Espaco;
     public bool GradeFluida = false;
+    public int BotoesPorLinha = 4;
+    public int LinhasDaGrade = 0;
     public int LarguraMinimaDoBotao = 300;
     public bool IconeAoLado = true;
     public bool MostrarContadores = true;
@@ -293,7 +295,8 @@ class JanelaConfiguracoes : Form
     readonly ComboBox comboModo = Combo("comboModo");
     readonly ComboBox comboTema = Combo("comboTema");
     readonly ComboBox comboIcone = Combo("comboIcone");
-    readonly ComboBox comboGrade = Combo("comboGrade");
+    readonly ComboBox comboColunas = new ComboBox { Name = "comboColunas", AccessibleName = "Colunas da grade", DropDownStyle = ComboBoxStyle.DropDownList, Width = 62 };
+    readonly ComboBox comboLinhas = new ComboBox { Name = "comboLinhas", AccessibleName = "Linhas da grade", DropDownStyle = ComboBoxStyle.DropDownList, Width = 62 };
     readonly ComboBox comboAcao = Combo("comboAcao");
     readonly ComboBox comboFonte = Combo("comboFonte");
     readonly ComboBox comboLargura = Combo("comboLargura");
@@ -303,7 +306,7 @@ class JanelaConfiguracoes : Form
     readonly NumericUpDown campoLarguraMinima = new NumericUpDown { Name = "campoLarguraMinima", Minimum = 120, Maximum = 800, Increment = 20, Width = 80 };
     readonly CheckBox caixaInicio = new CheckBox { Name = "caixaInicio", Text = "Iniciar com o Windows", AutoSize = true };
     readonly CheckBox caixaSempreVisivel = new CheckBox { Name = "caixaSempreVisivel", Text = "Sempre visível sobre as outras janelas", AutoSize = true };
-    readonly CheckBox caixaContadores = new CheckBox { Name = "caixaContadores", Text = "Mostrar contador de notificações e status dos apps", AutoSize = true };
+    readonly CheckBox caixaContadores = new CheckBox { Name = "caixaContadores", Text = "Mostrar notificações e status dos apps", AutoSize = true };
     readonly CheckBox caixaBrilhoSoftware = new CheckBox { Name = "caixaBrilhoSoftware", Text = "Escurecer o deck por software", AutoSize = true };
     readonly ListBox lista = new ListBox { Name = "lista", Dock = DockStyle.Fill, IntegralHeight = false };
     readonly TextBox campoRotulo = new TextBox { Name = "campoRotulo", AccessibleName = "Rotulo do botao", Dock = DockStyle.Fill };
@@ -379,28 +382,37 @@ class JanelaConfiguracoes : Form
         var grade = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
         grade.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         grade.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        grade.Controls.Add(Legenda("Monitor do deck"), 0, 0);
-        grade.Controls.Add(comboTela, 1, 0);
-        grade.Controls.Add(Legenda("Ao abrir"), 0, 1);
-        grade.Controls.Add(comboModo, 1, 1);
-        grade.Controls.Add(Legenda("Tema"), 0, 2);
-        grade.Controls.Add(comboTema, 1, 2);
-        grade.Controls.Add(Legenda("Fonte"), 0, 3);
-        grade.Controls.Add(comboFonte, 1, 3);
-        grade.Controls.Add(Legenda("Tamanho do texto (%)"), 0, 4);
-        grade.Controls.Add(campoEscala, 1, 4);
-        grade.Controls.Add(Legenda("Espaço entre botões (px)"), 0, 5);
-        grade.Controls.Add(campoEspaco, 1, 5);
-        grade.Controls.Add(Legenda("Ícone com texto"), 0, 6);
-        grade.Controls.Add(comboIcone, 1, 6);
-        grade.Controls.Add(Legenda("Botões por linha"), 0, 7);
-        grade.Controls.Add(comboGrade, 1, 7);
-        grade.Controls.Add(Legenda("Largura mínima do botão (px)"), 0, 8);
-        grade.Controls.Add(campoLarguraMinima, 1, 8);
-        grade.Controls.Add(caixaInicio, 1, 9);
-        grade.Controls.Add(caixaSempreVisivel, 1, 10);
-        grade.Controls.Add(caixaBrilhoSoftware, 1, 11);
-        grade.Controls.Add(caixaContadores, 1, 12);
+
+        // Colunas x linhas, como a grade de teclas de um deck físico.
+        var tamanhoDaGrade = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0) };
+        tamanhoDaGrade.Controls.Add(comboColunas);
+        tamanhoDaGrade.Controls.Add(new Label { Text = "×", AutoSize = true, Margin = new Padding(4, 7, 4, 0) });
+        tamanhoDaGrade.Controls.Add(comboLinhas);
+        grade.Controls.Add(Legenda("Grade (colunas × linhas)"), 0, 0);
+        grade.Controls.Add(tamanhoDaGrade, 1, 0);
+        grade.Controls.Add(Legenda("Largura mínima (px)"), 0, 1);
+        grade.Controls.Add(campoLarguraMinima, 1, 1);
+        grade.Controls.Add(Legenda("Monitor do deck"), 0, 2);
+        grade.Controls.Add(comboTela, 1, 2);
+        grade.Controls.Add(Legenda("Ao abrir"), 0, 3);
+        grade.Controls.Add(comboModo, 1, 3);
+        grade.Controls.Add(Legenda("Tema"), 0, 4);
+        grade.Controls.Add(comboTema, 1, 4);
+        grade.Controls.Add(Legenda("Fonte"), 0, 5);
+        grade.Controls.Add(comboFonte, 1, 5);
+        grade.Controls.Add(Legenda("Tamanho do texto (%)"), 0, 6);
+        grade.Controls.Add(campoEscala, 1, 6);
+        grade.Controls.Add(Legenda("Espaço entre botões (px)"), 0, 7);
+        grade.Controls.Add(campoEspaco, 1, 7);
+        grade.Controls.Add(Legenda("Ícone com texto"), 0, 8);
+        grade.Controls.Add(comboIcone, 1, 8);
+        // As caixas ocupam as duas colunas para o texto não ser cortado.
+        CheckBox[] caixas = { caixaInicio, caixaSempreVisivel, caixaBrilhoSoftware, caixaContadores };
+        for (int i = 0; i < caixas.Length; i++)
+        {
+            grade.Controls.Add(caixas[i], 0, 9 + i);
+            grade.SetColumnSpan(caixas[i], 2);
+        }
 
         var grupo = new GroupBox { Text = "Geral", Dock = DockStyle.Fill };
         grupo.Controls.Add(grade);
@@ -567,10 +579,16 @@ class JanelaConfiguracoes : Form
         comboIcone.Items.Add(new Opcao(false, "Acima do texto"));
         Selecionar(comboIcone, copia.IconeAoLado);
 
-        comboGrade.Items.Add(new Opcao(false, "Sempre 4"));
-        comboGrade.Items.Add(new Opcao(true, "Conforme a largura do painel"));
-        Selecionar(comboGrade, copia.GradeFluida);
-        comboGrade.SelectedIndexChanged += (s, e) => campoLarguraMinima.Enabled = (bool)Valor(comboGrade);
+        // Auto (0): nas colunas, a grade fluida; nas linhas, só as que os botões precisam.
+        foreach (ComboBox combo in new[] { comboColunas, comboLinhas })
+        {
+            combo.Items.Add(new Opcao(0, "Auto"));
+            for (int n = 1; n <= 10; n++)
+                combo.Items.Add(new Opcao(n, n.ToString()));
+        }
+        Selecionar(comboColunas, copia.GradeFluida ? 0 : Math.Max(1, Math.Min(10, copia.BotoesPorLinha)));
+        Selecionar(comboLinhas, Math.Max(0, Math.Min(10, copia.LinhasDaGrade)));
+        comboColunas.SelectedIndexChanged += (s, e) => campoLarguraMinima.Enabled = (int)Valor(comboColunas) == 0;
         campoLarguraMinima.Enabled = copia.GradeFluida;
 
         foreach (FontFamily familia in FontFamily.Families)
@@ -810,7 +828,11 @@ class JanelaConfiguracoes : Form
         copia.Fonte = (string)Valor(comboFonte);
         copia.EscalaFonte = (int)campoEscala.Value;
         copia.EspacoEntreBotoes = (int)campoEspaco.Value;
-        copia.GradeFluida = (bool)Valor(comboGrade);
+        copia.LinhasDaGrade = (int)Valor(comboLinhas);
+        int porLinha = (int)Valor(comboColunas);
+        copia.GradeFluida = porLinha == 0;
+        if (porLinha > 0)
+            copia.BotoesPorLinha = porLinha;
         copia.LarguraMinimaDoBotao = (int)campoLarguraMinima.Value;
         copia.SempreVisivel = caixaSempreVisivel.Checked;
         copia.BrilhoDeckPorSoftware = caixaBrilhoSoftware.Checked;
