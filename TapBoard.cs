@@ -38,20 +38,20 @@ static class Padrao
     // Os botões da primeira vez saem do catálogo, já com ícone: 4 colunas, 3 linhas.
     static readonly string[] Iniciais =
     {
-        "Brilho −10", "Brilho +10", "Brilho 15%", "Brilho 50%", "Brilho 100%",
-        "Volume −", "Volume +", "Mudo", "Microfone", "Anterior", "Próxima", "Play / Pause",
-        "Recorte de tela", "Explorer", "Gerenciador de Tarefas", "Bloquear PC",
+        "Brilho −10 / +10", "Brilho 15%", "Brilho 50%", "Brilho 100%",
+        "Volume − / +", "Mudo", "Microfone", "Anterior / Próxima",
+        "Play / Pause", "Recorte de tela", "Explorer", "Bloquear PC",
     };
 
     public static List<Botao> Botoes()
     {
         List<ItemDoCatalogo> prontos = Catalogo.Prontos();
         var botoes = new List<Botao>();
-        foreach (string rotulo in Iniciais)
+        foreach (string nome in Iniciais)
             foreach (ItemDoCatalogo item in prontos)
-                if (item.Modelo.Rotulo == rotulo)
+                if (item.Nome == nome)
                 {
-                    botoes.Add(item.Novo());
+                    botoes.AddRange(item.Novos());
                     break;
                 }
         return botoes;
@@ -1375,11 +1375,11 @@ class Painel : Form
     // Esta janela recebe foco de propósito: é onde se digita.
     public static void AbrirConfiguracoes()
     {
-        AbrirConfiguracoes(false);
+        AbrirConfiguracoes(-1);
     }
 
-    // Com adicionar, abre já na janela do catálogo de botões.
-    public static void AbrirConfiguracoes(bool adicionar)
+    // Com editar, abre com esse botão selecionado no editor.
+    public static void AbrirConfiguracoes(int editar)
     {
         if (janelaConfiguracoes == null)
         {
@@ -1388,8 +1388,37 @@ class Painel : Form
             janelaConfiguracoes.Show();
         }
         janelaConfiguracoes.Activate();
-        if (adicionar)
-            janelaConfiguracoes.BeginInvoke((Action)janelaConfiguracoes.AdicionarDoCatalogo);
+        if (editar >= 0)
+            janelaConfiguracoes.Editar(editar);
+    }
+
+    // Pelo menu, a escolha vale na hora, sem passar pelo Salvar das configurações.
+    // Com as configurações abertas, a escolha entra nelas para não perder o que
+    // estiver sendo editado lá.
+    void EscolherBotoes()
+    {
+        if (janelaConfiguracoes != null)
+        {
+            janelaConfiguracoes.Activate();
+            janelaConfiguracoes.BeginInvoke((Action)janelaConfiguracoes.EscolherDoCatalogo);
+            return;
+        }
+
+        Configuracoes c = Configuracoes.Atual;
+        using (var janela = new JanelaCatalogo(tema, c.Botoes))
+        {
+            if (janela.ShowDialog(this) != DialogResult.OK)
+            {
+                DevolverFoco();
+                return;
+            }
+            c.Salvar();
+            AplicarConfiguracoes();
+            if (janela.ParaEditar >= 0)
+                AbrirConfiguracoes(janela.ParaEditar);
+            else
+                DevolverFoco();
+        }
     }
 
     public void Posicionar()
@@ -1495,6 +1524,13 @@ class Painel : Form
                     return;
                 }
                 break;
+            case WM_NCCALCSIZE:
+                if (CalcularMoldura(ref m))
+                    return;
+                break;
+            case WM_NCHITTEST:
+                TestarPosicao(ref m);
+                return;
             case WM_POINTERDOWN:
                 ToqueIniciado(IdDoToque(m), PosicaoDoToque(m));
                 m.Result = IntPtr.Zero;
@@ -1588,68 +1624,210 @@ class Painel : Form
     }
 
     // ===== Barra de menus =====
-    // Faixa no topo, como a do Bloco de Notas: menus à esquerda e a engrenagem das
-    // configurações à direita. É desenhada aqui, e não com MenuStrip, para tocar nela
-    // não ativar a janela, como nos botões; só abrir um menu ativa, e ao fechar o
-    // foco volta para o app que estava em uso.
+    // Uma linha só no topo, como no VS Code: ícone, menus, título, engrenagem e, em
+    // janela, minimizar, maximizar e fechar. A barra de título do Windows sai (veja
+    // WM_NCCALCSIZE); o espaço vazio da barra continua arrastando a janela, com
+    // duplo clique para maximizar. Tocar nos itens não ativa a janela, como nos
+    // botões; só abrir um menu ativa, e ao fechar o foco volta para o app em uso.
 
     const int ALTURA_DA_BARRA = 36;
+    const int LARGURA_DO_CONTROLE = 46;
     const int NA_BARRA = -2;
     static readonly string[] MenusDaBarra = { "Arquivo", "Exibir", "Ajuda" };
     static readonly int ENGRENAGEM = MenusDaBarra.Length;
+    static readonly int MINIMIZAR = ENGRENAGEM + 1;
+    static readonly int MAXIMIZAR = ENGRENAGEM + 2;
+    static readonly int FECHAR = ENGRENAGEM + 3;
     static readonly bool TemMdl2 = Array.Exists(FontFamily.Families, f => f.Name == "Segoe MDL2 Assets");
 
     readonly Font fonteDaBarra = new Font("Segoe UI", 14f, GraphicsUnit.Pixel);
+    readonly Font fonteDosSimbolos = new Font(TemMdl2 ? "Segoe MDL2 Assets" : "Segoe UI Symbol", TemMdl2 ? 13f : 15f, GraphicsUnit.Pixel);
     readonly Font fonteDaEngrenagem = new Font(TemMdl2 ? "Segoe MDL2 Assets" : "Segoe UI Symbol", 16f, GraphicsUnit.Pixel);
+    readonly Icon iconeDaBarra = IconeDoApp.Bandeja();
     int menuAberto = NENHUM;
+    int itemSobOMouse = NENHUM;
     IntPtr focoAnterior;
 
+    bool TemControlesDeJanela()
+    {
+        return FormBorderStyle != FormBorderStyle.None;
+    }
+
+    // Itens vazios (Rectangle.Empty) não aparecem: em tela cheia não há minimizar etc.
     Rectangle[] ItensDaBarra()
     {
-        var itens = new Rectangle[MenusDaBarra.Length + 1];
-        int x = 6;
+        var itens = new Rectangle[FECHAR + 1];
+        int x = 40;
         for (int i = 0; i < MenusDaBarra.Length; i++)
         {
             int largura = TextRenderer.MeasureText(MenusDaBarra[i], fonteDaBarra).Width + 20;
             itens[i] = new Rectangle(x, 0, largura, ALTURA_DA_BARRA);
             x += largura;
         }
-        itens[ENGRENAGEM] = new Rectangle(ClientSize.Width - 48, 0, 48, ALTURA_DA_BARRA);
+        int direita = ClientSize.Width;
+        if (TemControlesDeJanela())
+            for (int i = FECHAR; i >= MINIMIZAR; i--)
+            {
+                direita -= LARGURA_DO_CONTROLE;
+                itens[i] = new Rectangle(direita, 0, LARGURA_DO_CONTROLE, ALTURA_DA_BARRA);
+            }
+        itens[ENGRENAGEM] = new Rectangle(direita - LARGURA_DO_CONTROLE, 0, LARGURA_DO_CONTROLE, ALTURA_DA_BARRA);
         return itens;
+    }
+
+    int ItemDaBarraEm(Point ponto)
+    {
+        Rectangle[] itens = ItensDaBarra();
+        for (int i = 0; i < itens.Length; i++)
+            if (itens[i].Contains(ponto))
+                return i;
+        return NENHUM;
+    }
+
+    string SimboloDe(int item)
+    {
+        if (item == ENGRENAGEM)
+            return TemMdl2 ? "\uE713" : "\u2699";
+        if (item == MINIMIZAR)
+            return TemMdl2 ? "\uE921" : "\u2013";
+        if (item == MAXIMIZAR)
+            return WindowState == FormWindowState.Maximized
+                ? (TemMdl2 ? "\uE923" : "\u2750")
+                : (TemMdl2 ? "\uE922" : "\u25A1");
+        return TemMdl2 ? "\uE8BB" : "\u2715";
     }
 
     void DesenharBarra(Graphics g)
     {
         using (var linha = new Pen(tema.Campo))
             g.DrawLine(linha, 0, ALTURA_DA_BARRA - 1, ClientSize.Width, ALTURA_DA_BARRA - 1);
+        g.DrawIcon(iconeDaBarra, new Rectangle(13, (ALTURA_DA_BARRA - 16) / 2, 16, 16));
 
         Rectangle[] itens = ItensDaBarra();
         const TextFormatFlags centro = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter;
+
+        // O título fica no meio, como no VS Code, se couber entre os menus e a engrenagem.
+        var titulo = Rectangle.FromLTRB(itens[ENGRENAGEM - 1].Right, 0, itens[ENGRENAGEM].Left, ALTURA_DA_BARRA);
+        if (titulo.Width > TextRenderer.MeasureText(Text, fonteDaBarra).Width + 24)
+        {
+            Color apagado = Misturar(tema.TextoBarra, tema.Fundo, 0.4f);
+            var meio = new Rectangle((ClientSize.Width - 200) / 2, 0, 200, ALTURA_DA_BARRA);
+            TextRenderer.DrawText(g, Text, fonteDaBarra, meio.Left >= titulo.Left && meio.Right <= titulo.Right ? meio : titulo, apagado, centro);
+        }
+
         for (int i = 0; i < itens.Length; i++)
         {
-            if (i == menuAberto)
-                using (var fundo = new SolidBrush(tema.Campo))
-                    g.FillRectangle(fundo, Rectangle.Inflate(itens[i], 0, -4));
-            if (i == ENGRENAGEM)
-                TextRenderer.DrawText(g, TemMdl2 ? "\uE713" : "\u2699", fonteDaEngrenagem, itens[i], tema.TextoBarra, centro);
+            if (itens[i].IsEmpty)
+                continue;
+            bool destacado = i == menuAberto || i == itemSobOMouse;
+            Color texto = tema.TextoBarra;
+            if (destacado)
+            {
+                bool fechar = i == FECHAR;
+                Color fundo = fechar ? Color.FromArgb(196, 43, 28) : tema.Campo;
+                if (fechar)
+                    texto = Color.White;
+                using (var pincel = new SolidBrush(fundo))
+                    g.FillRectangle(pincel, i < ENGRENAGEM ? Rectangle.Inflate(itens[i], 0, -4) : itens[i]);
+            }
+            if (i < ENGRENAGEM)
+                TextRenderer.DrawText(g, MenusDaBarra[i], fonteDaBarra, itens[i], texto, centro);
             else
-                TextRenderer.DrawText(g, MenusDaBarra[i], fonteDaBarra, itens[i], tema.TextoBarra, centro);
+                TextRenderer.DrawText(g, SimboloDe(i), i == ENGRENAGEM ? fonteDaEngrenagem : fonteDosSimbolos, itens[i], texto, centro);
         }
     }
 
     void TocarNaBarra(Point ponto)
     {
-        Rectangle[] itens = ItensDaBarra();
-        for (int i = 0; i < itens.Length; i++)
-        {
-            if (!itens[i].Contains(ponto))
-                continue;
-            if (i == ENGRENAGEM)
-                AbrirConfiguracoes();
-            else
-                AbrirMenu(i);
+        int item = ItemDaBarraEm(ponto);
+        if (item == NENHUM)
             return;
+        if (item == ENGRENAGEM)
+            AbrirConfiguracoes();
+        else if (item == MINIMIZAR)
+            WindowState = FormWindowState.Minimized;
+        else if (item == MAXIMIZAR)
+            WindowState = WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized;
+        else if (item == FECHAR)
+            Close();
+        else
+            AbrirMenu(item);
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        int item = e.Y < ALTURA_DA_BARRA ? ItemDaBarraEm(e.Location) : NENHUM;
+        if (item != itemSobOMouse)
+        {
+            itemSobOMouse = item;
+            Invalidate(new Rectangle(0, 0, ClientSize.Width, ALTURA_DA_BARRA));
         }
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        base.OnMouseLeave(e);
+        if (itemSobOMouse != NENHUM)
+        {
+            itemSobOMouse = NENHUM;
+            Invalidate(new Rectangle(0, 0, ClientSize.Width, ALTURA_DA_BARRA));
+        }
+    }
+
+    // ===== Moldura sem a barra de título do Windows =====
+
+    const int WM_NCCALCSIZE = 0x0083;
+    const int WM_NCHITTEST = 0x0084;
+    const int HTCAPTION = 2;
+    const int HTTOP = 12;
+    const int HTTOPLEFT = 13;
+    const int HTTOPRIGHT = 14;
+    const int SM_CYSIZEFRAME = 33;
+    const int SM_CXPADDEDBORDER = 92;
+    const int BORDA_DE_CIMA = 5;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct Retangulo
+    {
+        public int Esquerda, Topo, Direita, Base;
+    }
+
+    [DllImport("user32.dll")]
+    static extern int GetSystemMetrics(int indice);
+
+    // Deixa o Windows calcular as bordas e devolve o topo: a área do cliente começa
+    // no alto da janela. Maximizada, a janela passa um pouco da tela, e o topo desce
+    // o mesmo tanto.
+    bool CalcularMoldura(ref Message m)
+    {
+        if (m.WParam == IntPtr.Zero || !TemControlesDeJanela())
+            return false;
+        var antes = (Retangulo)Marshal.PtrToStructure(m.LParam, typeof(Retangulo));
+        base.WndProc(ref m);
+        var depois = (Retangulo)Marshal.PtrToStructure(m.LParam, typeof(Retangulo));
+        depois.Topo = antes.Topo;
+        if (WindowState == FormWindowState.Maximized)
+            depois.Topo += GetSystemMetrics(SM_CYSIZEFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+        Marshal.StructureToPtr(depois, m.LParam, false);
+        m.Result = IntPtr.Zero;
+        return true;
+    }
+
+    // Borda de cima redimensiona; o vazio da barra arrasta a janela.
+    void TestarPosicao(ref Message m)
+    {
+        base.WndProc(ref m);
+        if (!TemControlesDeJanela() || m.Result.ToInt64() != HTCLIENT)
+            return;
+        Point ponto = PointToClient(PosicaoDoToque(m));
+        if (WindowState == FormWindowState.Normal && ponto.Y < BORDA_DE_CIMA)
+        {
+            int resultado = ponto.X < 12 ? HTTOPLEFT : ponto.X >= ClientSize.Width - 12 ? HTTOPRIGHT : HTTOP;
+            m.Result = (IntPtr)resultado;
+        }
+        else if (ponto.Y < ALTURA_DA_BARRA && ItemDaBarraEm(ponto) == NENHUM)
+            m.Result = (IntPtr)HTCAPTION;
     }
 
     void AbrirMenu(int indice)
@@ -1694,7 +1872,7 @@ class Painel : Form
         switch (indice)
         {
             case 0:
-                Item(menu, "Adicionar botões…", false, false, () => AbrirConfiguracoes(true));
+                Item(menu, "Escolher botões…", false, false, EscolherBotoes);
                 menu.Items.Add(new ToolStripSeparator());
                 Item(menu, "Sair do TapBoard", false, false, Application.Exit);
                 break;

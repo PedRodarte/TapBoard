@@ -10,7 +10,7 @@ tirar o foco do app que está no monitor principal**.
 1. Dê dois cliques em `build.cmd`. Ele compila o `TapBoard.cs` com o compilador
    que já vem no Windows, gera o `TapBoard.exe` e abre o painel.
 2. Depois disso, basta abrir o `TapBoard.exe`.
-3. Para pôr botões novos, use **Arquivo > Adicionar botões…** e escolha na lista.
+3. Para escolher os botões, use **Arquivo > Escolher botões…** e marque na lista.
    Para mudar ícones, fonte, tema ou monitor, toque na engrenagem no canto do painel.
    Nada disso exige recompilar nem mexer em arquivos.
 
@@ -107,9 +107,11 @@ fica salva.
 | Mídia   | play/pause, anterior, próxima |
 | Sistema | recorte de tela, Explorer, VS Code, Gerenciador de Tarefas, bloquear PC |
 
-No topo do painel fica uma barra de menus, como a do Bloco de Notas: Arquivo
-(Adicionar botões, Sair), Exibir (tela cheia, sempre visível, tema) e Ajuda, com a
-engrenagem das configurações à direita. Tocar na barra não tira o foco do app em
+No topo do painel fica uma linha só, como a do VS Code: ícone, menus Arquivo
+(Escolher botões, Sair), Exibir (tela cheia, sempre visível, tema) e Ajuda, o
+título, a engrenagem das configurações e, em janela, minimizar, maximizar e fechar.
+A barra de título do Windows sai (`WM_NCCALCSIZE`); o vazio da linha arrasta a
+janela, duplo clique maximiza e a borda de cima redimensiona (`WM_NCHITTEST`). Tocar na barra não tira o foco do app em
 uso; abrir um menu ativa o painel, e ao fechar o foco volta para o app. As ações
 de alternar janela, alternar tema e abrir configurações continuam disponíveis
 para quem quiser um botão.
@@ -137,27 +139,23 @@ No atalho valem letras, números, pontuação, `F1` a `F24` e os nomes `Ctrl`,
 `Home`, `End`, `PgUp`, `PgDn`, `PrtSc`, `Cima`, `Baixo`, `Esquerda` e `Direita`.
 Atalho e texto vão para o app em foco, porque o painel nunca toma o foco.
 
-### Adicionar botões
+### Escolher botões
 
-**Arquivo > Adicionar botões…** (ou **Adicionar…** nas configurações) abre uma
-janela com duas abas. Toque nos que quiser e depois em Adicionar.
+**Arquivo > Escolher botões…** (ou **Escolher…** nas configurações) abre a lista
+com tudo o que o TapBoard sabe fazer, com uma caixa na frente de cada item: marcado
+é estar no painel. Marcar põe o botão no fim; desmarcar tira. Pelo menu, vale na
+hora. Tem busca no topo e duas abas:
 
-- **Prontos**, para quem não quer configurar nada: som e microfone, brilho, mídia,
-  atalhos do Windows (recorte, área de trabalho, emojis, histórico da área de
-  transferência, ditado, Gerenciador de Tarefas…), edição (copiar, colar,
-  desfazer…), reuniões (câmera e mão levantada no Teams, Zoom e Meet) e os
-  programas que estiverem instalados (Chrome, Office, Teams, Spotify, Discord,
-  WhatsApp, Steam…). Os programas são detectados pelo registro do Windows.
-- **Macros e personalizados**, modelos para montar o seu: atalho, sequência de
-  teclas, digitar texto, abrir programa, arquivo ou site, rodar comando e brilho
-  num valor escolhido. Depois de adicionar, ajuste o parâmetro no editor.
-
-O mudo do microfone vale para o microfone padrão e o de comunicação, em qualquer
-app. Com o microfone mudo, o botão mostra uma bolinha vermelha e a versão "-off" do
-ícone, se existir (`mdi-microphone-off` para `mdi-microphone`).
-
-Botões de dois estados (mudo do som e do microfone) ficam afundados pela metade
-enquanto estão ligados, como uma tecla com trava.
+- **Prontos** (160+ itens): som e microfone, brilho, mídia, atalhos do Windows
+  (recorte, gravar a tela, áreas de trabalho virtuais, encostar janelas, lupa,
+  emojis…), pastas e páginas das Configurações do Windows (Wi-Fi, Bluetooth, som,
+  tela…), apps do Windows, programas instalados (detectados pelo registro: Chrome,
+  Office, Teams, Zoom, Spotify, Discord, OBS, Steam…), edição, navegador, reuniões
+  (Teams, Zoom, Meet, Discord), atalhos do VS Code, Excel e PowerPoint quando
+  instalados, reações (👍 ❤️ 😂) e energia (desligar ou reiniciar em 1 minuto, com
+  cancelar). Pares como Volume − / + são um item só e viram uma tecla partida.
+- **Macros e personalizados**: modelos de atalho, sequência de teclas, texto,
+  programa, site, comando e brilho. Tocar num deles cria o botão e abre o editor.
 
 ### Grade
 

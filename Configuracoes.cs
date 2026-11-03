@@ -432,7 +432,7 @@ class JanelaConfiguracoes : Form
     Control MontarBotoes()
     {
         var acoes = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
-        acoes.Controls.Add(Acao("botaoAdicionar", "Adicionar…", (s, e) => AdicionarDoCatalogo()));
+        acoes.Controls.Add(Acao("botaoAdicionar", "Escolher…", (s, e) => EscolherDoCatalogo()));
         acoes.Controls.Add(Acao("botaoRemover", "Remover", (s, e) => Remover()));
         acoes.Controls.Add(Acao("botaoSubir", "Subir", (s, e) => Mover(-1)));
         acoes.Controls.Add(Acao("botaoDescer", "Descer", (s, e) => Mover(1)));
@@ -753,16 +753,24 @@ class JanelaConfiguracoes : Form
     }
 
     // Os novos entram no fim da lista; o primeiro fica selecionado para ajustar.
-    public void AdicionarDoCatalogo()
+    public void EscolherDoCatalogo()
     {
-        using (var janela = new JanelaCatalogo(tema))
+        using (var janela = new JanelaCatalogo(tema, copia.Botoes))
         {
             if (janela.ShowDialog(this) != DialogResult.OK)
                 return;
-            int primeiro = copia.Botoes.Count;
-            copia.Botoes.AddRange(janela.Novos);
-            AtualizarLista(primeiro);
+            AtualizarLista(janela.ParaEditar >= 0 ? janela.ParaEditar : lista.SelectedIndex);
+            if (janela.ParaEditar >= 0)
+            {
+                campoParametro.Focus();
+                campoParametro.SelectAll();
+            }
         }
+    }
+
+    public void Editar(int indice)
+    {
+        AtualizarLista(indice);
         campoParametro.Focus();
         campoParametro.SelectAll();
     }
