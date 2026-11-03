@@ -1367,7 +1367,7 @@ class Painel : Form
         {
             int largura = Math.Max(diametro, (int)g.MeasureString(texto, letra).Width + diametro / 3);
             int margem = diametro / 4;
-            var bolha = new Rectangle(face.Right - largura - margem, face.Y + margem, largura, diametro);
+            var bolha = new Rectangle(face.Right - largura - margem, face.Y + (face.Height - diametro) / 2, largura, diametro);
             using (GraphicsPath forma = Arredondado(bolha, diametro / 2))
             using (var fundo = new SolidBrush(COR_CONTADOR))
             using (var aro = new Pen(Misturar(corDoBotao, Color.Black, 0.35f), 2f))
@@ -1396,7 +1396,7 @@ class Painel : Form
 
         int diametro = Math.Max(16, (int)(face.Height * 0.3f));
         int margem = (int)(face.Height * 0.42f * 0.25f);
-        var bolinha = new Rectangle(face.Right - diametro - margem, face.Y + margem, diametro, diametro);
+        var bolinha = new Rectangle(face.Right - diametro - margem, face.Y + (face.Height - diametro) / 2, diametro, diametro);
         using (var fundo = new SolidBrush(cor))
         using (var aro = new Pen(Misturar(corDoBotao, Color.Black, 0.35f), 2f))
         {
