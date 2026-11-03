@@ -194,12 +194,6 @@ static class Acoes
     [DllImport("user32.dll")]
     static extern bool LockWorkStation();
 
-    // Libera o programa aberto para vir à frente. O TapBoard não fica em foco,
-    // então sem isso o Windows barra, por exemplo, o VS Code já aberto.
-    // Funciona porque o toque ou o clique que acabou de chegar foi para o TapBoard.
-    [DllImport("user32.dll")]
-    static extern bool AllowSetForegroundWindow(int idDoProcesso);
-    const int ASFW_ANY = -1;
 
     public static void Executar(Botao botao)
     {
@@ -236,8 +230,12 @@ static class Acoes
                 Teclado.Enviar(teclas);
                 break;
             case TipoAcao.Abrir:
-                AllowSetForegroundWindow(ASFW_ANY);
-                Process.Start(Environment.ExpandEnvironmentVariables(botao.Parametro));
+                string alvo = Environment.ExpandEnvironmentVariables(botao.Parametro);
+                IntPtr aberta = JanelaDoPrograma.Procurar(alvo);
+                if (aberta != IntPtr.Zero)
+                    JanelaDoPrograma.TrazerParaFrente(aberta);
+                else
+                    Process.Start(alvo);
                 break;
             case TipoAcao.BloquearPC:
                 LockWorkStation();
@@ -251,6 +249,122 @@ static class Acoes
             case TipoAcao.Configuracoes:
                 Painel.AbrirConfiguracoes();
                 break;
+        }
+    }
+}
+
+// Se o programa de um botão Abrir já está aberto, traz a janela dele para a frente.
+// Abrir de novo não basta: o VS Code, por exemplo, só tenta focar a janela que já
+// existe, e o Windows barra isso porque o TapBoard não está em foco.
+static class JanelaDoPrograma
+{
+    delegate bool AoListar(IntPtr janela, IntPtr dado);
+
+    [DllImport("user32.dll")]
+    static extern bool EnumWindows(AoListar aoListar, IntPtr dado);
+
+    [DllImport("user32.dll")]
+    static extern uint GetWindowThreadProcessId(IntPtr janela, out uint processo);
+
+    [DllImport("user32.dll")]
+    static extern bool IsWindowVisible(IntPtr janela);
+
+    [DllImport("user32.dll")]
+    static extern int GetWindowTextLength(IntPtr janela);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetWindow(IntPtr janela, uint relacao);
+
+    [DllImport("user32.dll")]
+    static extern int GetWindowLong(IntPtr janela, int indice);
+
+    [DllImport("user32.dll")]
+    static extern bool IsIconic(IntPtr janela);
+
+    [DllImport("user32.dll")]
+    static extern bool ShowWindow(IntPtr janela, int comando);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    static extern bool AttachThreadInput(uint deThread, uint paraThread, bool ligar);
+
+    [DllImport("kernel32.dll")]
+    static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr janela);
+
+    [DllImport("user32.dll")]
+    static extern bool BringWindowToTop(IntPtr janela);
+
+    const uint GW_OWNER = 4;
+    const int GWL_EXSTYLE = -20;
+    const int WS_EX_TOOLWINDOW = 0x80;
+    const int SW_RESTORE = 9;
+
+    // Só .exe; o Explorer fica de fora porque abrir uma janela nova é o esperado.
+    public static IntPtr Procurar(string caminho)
+    {
+        if (!caminho.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || !File.Exists(caminho)
+            || Path.GetFileName(caminho).Equals("explorer.exe", StringComparison.OrdinalIgnoreCase))
+            return IntPtr.Zero;
+
+        var processos = new HashSet<uint>();
+        foreach (Process processo in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(caminho)))
+        {
+            try
+            {
+                if (string.Equals(processo.MainModule.FileName, Path.GetFullPath(caminho), StringComparison.OrdinalIgnoreCase))
+                    processos.Add((uint)processo.Id);
+            }
+            catch (Exception)
+            {
+                // Processo de outro usuário ou já encerrado.
+            }
+        }
+        if (processos.Count == 0)
+            return IntPtr.Zero;
+
+        // EnumWindows vai da janela mais à frente para a mais atrás: fica a usada por último.
+        IntPtr achada = IntPtr.Zero;
+        EnumWindows((janela, dado) =>
+        {
+            uint processo;
+            GetWindowThreadProcessId(janela, out processo);
+            if (processos.Contains(processo) && IsWindowVisible(janela) && GetWindowTextLength(janela) > 0
+                && GetWindow(janela, GW_OWNER) == IntPtr.Zero
+                && (GetWindowLong(janela, GWL_EXSTYLE) & WS_EX_TOOLWINDOW) == 0)
+            {
+                achada = janela;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return achada;
+    }
+
+    // Ligar a fila de entrada à da janela em foco libera o SetForegroundWindow.
+    public static void TrazerParaFrente(IntPtr janela)
+    {
+        if (IsIconic(janela))
+            ShowWindow(janela, SW_RESTORE);
+
+        uint processo;
+        uint threadDaFrente = GetWindowThreadProcessId(GetForegroundWindow(), out processo);
+        uint minhaThread = GetCurrentThreadId();
+        bool ligada = threadDaFrente != 0 && threadDaFrente != minhaThread
+            && AttachThreadInput(minhaThread, threadDaFrente, true);
+        try
+        {
+            BringWindowToTop(janela);
+            SetForegroundWindow(janela);
+        }
+        finally
+        {
+            if (ligada)
+                AttachThreadInput(minhaThread, threadDaFrente, false);
         }
     }
 }
