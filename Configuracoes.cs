@@ -432,7 +432,7 @@ class JanelaConfiguracoes : Form
     Control MontarBotoes()
     {
         var acoes = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false };
-        acoes.Controls.Add(Acao("botaoAdicionar", "Adicionar", (s, e) => Adicionar()));
+        acoes.Controls.Add(Acao("botaoAdicionar", "Adicionar…", (s, e) => AdicionarDoCatalogo()));
         acoes.Controls.Add(Acao("botaoRemover", "Remover", (s, e) => Remover()));
         acoes.Controls.Add(Acao("botaoSubir", "Subir", (s, e) => Mover(-1)));
         acoes.Controls.Add(Acao("botaoDescer", "Descer", (s, e) => Mover(1)));
@@ -752,12 +752,19 @@ class JanelaConfiguracoes : Form
                 campoParametro.Text = dialogo.FileName;
     }
 
-    void Adicionar()
+    // Os novos entram no fim da lista; o primeiro fica selecionado para ajustar.
+    public void AdicionarDoCatalogo()
     {
-        copia.Botoes.Add(new Botao("Novo botão", "#327D55", TipoAcao.VolumeMais));
-        AtualizarLista(copia.Botoes.Count - 1);
-        campoRotulo.Focus();
-        campoRotulo.SelectAll();
+        using (var janela = new JanelaCatalogo(tema))
+        {
+            if (janela.ShowDialog(this) != DialogResult.OK)
+                return;
+            int primeiro = copia.Botoes.Count;
+            copia.Botoes.AddRange(janela.Novos);
+            AtualizarLista(primeiro);
+        }
+        campoParametro.Focus();
+        campoParametro.SelectAll();
     }
 
     void Remover()

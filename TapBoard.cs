@@ -25,41 +25,36 @@ static class Padrao
     public const double GamaDoDeck = 2.2;
     public static readonly Size TamanhoJanela = new Size(960, 540);
 
-    const string CaminhoVSCode = @"%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe";
-
     public const string Fonte = "Segoe UI Semibold";
 
-    const string Brilho = "#C27A34";
-    const string Audio = "#3F7A80";
-    const string Midia = "#8A5578";
-    const string Sistema = "#6E8B47";
-    const string Perigo = "#B4493B";
+    public const string Brilho = "#C27A34";
+    public const string Audio = "#3F7A80";
+    public const string Midia = "#8A5578";
+    public const string Sistema = "#6E8B47";
+    public const string Edicao = "#4F6FA0";
+    public const string Reuniao = "#5B5FA8";
+    public const string Perigo = "#B4493B";
+
+    // Os botões da primeira vez saem do catálogo, já com ícone: 4 colunas, 3 linhas.
+    static readonly string[] Iniciais =
+    {
+        "Brilho −10", "Brilho +10", "Brilho 15%", "Brilho 50%", "Brilho 100%",
+        "Volume −", "Volume +", "Mudo", "Microfone", "Anterior", "Próxima", "Play / Pause",
+        "Recorte de tela", "Explorer", "Gerenciador de Tarefas", "Bloquear PC",
+    };
 
     public static List<Botao> Botoes()
     {
-        return new List<Botao>
-        {
-            new Botao("Brilho −10", Brilho, TipoAcao.BrilhoAjustar, "-10"),
-            new Botao("Brilho +10", Brilho, TipoAcao.BrilhoAjustar, "10"),
-            new Botao("Brilho 15%", Brilho, TipoAcao.BrilhoDefinir, "15"),
-            new Botao("Brilho 50%", Brilho, TipoAcao.BrilhoDefinir, "50"),
-
-            new Botao("Brilho 100%", Brilho, TipoAcao.BrilhoDefinir, "100"),
-            new Botao("Volume −", Audio, TipoAcao.VolumeMenos),
-            new Botao("Volume +", Audio, TipoAcao.VolumeMais),
-            new Botao("Mudo", Audio, TipoAcao.Mudo),
-
-            new Botao("Anterior", Midia, TipoAcao.MidiaAnterior),
-            new Botao("Play / Pause", Midia, TipoAcao.MidiaPlayPause) { Largura = 6 },
-            new Botao("Próxima", Midia, TipoAcao.MidiaProxima),
-
-            new Botao("Recorte de tela", Sistema, TipoAcao.Atalho, "Win+Shift+S"),
-            new Botao("Explorer", Sistema, TipoAcao.Abrir, "explorer.exe"),
-            new Botao("VS Code", Sistema, TipoAcao.Abrir, CaminhoVSCode),
-            new Botao("Tarefas", Sistema, TipoAcao.Abrir, "taskmgr.exe"),
-
-            new Botao("Bloquear PC", Perigo, TipoAcao.BloquearPC),
-        };
+        List<ItemDoCatalogo> prontos = Catalogo.Prontos();
+        var botoes = new List<Botao>();
+        foreach (string rotulo in Iniciais)
+            foreach (ItemDoCatalogo item in prontos)
+                if (item.Modelo.Rotulo == rotulo)
+                {
+                    botoes.Add(item.Novo());
+                    break;
+                }
+        return botoes;
     }
 }
 
@@ -1380,16 +1375,21 @@ class Painel : Form
     // Esta janela recebe foco de propósito: é onde se digita.
     public static void AbrirConfiguracoes()
     {
-        if (janelaConfiguracoes != null)
-        {
-            janelaConfiguracoes.Activate();
-            return;
-        }
+        AbrirConfiguracoes(false);
+    }
 
-        janelaConfiguracoes = new JanelaConfiguracoes(instancia.tema);
-        janelaConfiguracoes.FormClosed += (s, e) => janelaConfiguracoes = null;
-        janelaConfiguracoes.Show();
+    // Com adicionar, abre já na janela do catálogo de botões.
+    public static void AbrirConfiguracoes(bool adicionar)
+    {
+        if (janelaConfiguracoes == null)
+        {
+            janelaConfiguracoes = new JanelaConfiguracoes(instancia.tema);
+            janelaConfiguracoes.FormClosed += (s, e) => janelaConfiguracoes = null;
+            janelaConfiguracoes.Show();
+        }
         janelaConfiguracoes.Activate();
+        if (adicionar)
+            janelaConfiguracoes.BeginInvoke((Action)janelaConfiguracoes.AdicionarDoCatalogo);
     }
 
     public void Posicionar()
@@ -1601,14 +1601,13 @@ class Painel : Form
 
     readonly Font fonteDaBarra = new Font("Segoe UI", 14f, GraphicsUnit.Pixel);
     readonly Font fonteDaEngrenagem = new Font(TemMdl2 ? "Segoe MDL2 Assets" : "Segoe UI Symbol", 16f, GraphicsUnit.Pixel);
-    readonly Icon iconeDaBarra = IconeDoApp.Bandeja();
     int menuAberto = NENHUM;
     IntPtr focoAnterior;
 
     Rectangle[] ItensDaBarra()
     {
         var itens = new Rectangle[MenusDaBarra.Length + 1];
-        int x = 44;
+        int x = 6;
         for (int i = 0; i < MenusDaBarra.Length; i++)
         {
             int largura = TextRenderer.MeasureText(MenusDaBarra[i], fonteDaBarra).Width + 20;
@@ -1623,7 +1622,6 @@ class Painel : Form
     {
         using (var linha = new Pen(tema.Campo))
             g.DrawLine(linha, 0, ALTURA_DA_BARRA - 1, ClientSize.Width, ALTURA_DA_BARRA - 1);
-        g.DrawIcon(iconeDaBarra, new Rectangle(14, (ALTURA_DA_BARRA - 18) / 2, 18, 18));
 
         Rectangle[] itens = ItensDaBarra();
         const TextFormatFlags centro = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter;
@@ -1696,7 +1694,7 @@ class Painel : Form
         switch (indice)
         {
             case 0:
-                Item(menu, "Configurações…", false, false, AbrirConfiguracoes);
+                Item(menu, "Adicionar botões…", false, false, () => AbrirConfiguracoes(true));
                 menu.Items.Add(new ToolStripSeparator());
                 Item(menu, "Sair do TapBoard", false, false, Application.Exit);
                 break;
@@ -1714,9 +1712,8 @@ class Painel : Form
                 Item(menu, "Tema escuro", c.Tema == EscolhaDeTema.Escuro, true, () => EscolherTema(EscolhaDeTema.Escuro));
                 break;
             default:
-                Item(menu, "Abrir pasta das configurações", false, false, () => Process.Start("explorer.exe", Configuracoes.Pasta));
                 Item(menu, "Sobre o TapBoard", false, false, () => MessageBox.Show(this,
-                    "TapBoard\n\nPainel de botões para monitor touch.\nConfigurações em " + Configuracoes.Pasta,
+                    "TapBoard\n\nPainel de botões para monitor touch.\n\nÍcones: Material Design Icons (Apache 2.0).",
                     "Sobre o TapBoard"));
                 break;
         }
@@ -2038,14 +2035,13 @@ class Painel : Form
         }
     }
 
-    // Com o microfone mudo, usa a versão "-off" do ícone (mdi-microphone-off.svg), se existir.
+    // Com o microfone mudo, usa a versão "-off" do ícone (mdi-microphone-off), se existir.
     static string IconeDoEstado(Botao botao)
     {
         if (botao.Acao != TipoAcao.MicrofoneMudo || !Audio.MicrofoneMudo || string.IsNullOrEmpty(botao.Icone))
             return botao.Icone;
-        string desligado = Path.Combine(Path.GetDirectoryName(botao.Icone),
-            Path.GetFileNameWithoutExtension(botao.Icone) + "-off" + Path.GetExtension(botao.Icone));
-        return File.Exists(desligado) ? desligado : botao.Icone;
+        string desligado = Icones.Variante(botao.Icone, "-off");
+        return Icones.Existe(desligado) ? desligado : botao.Icone;
     }
 
     // Bolinha de status no canto da face, nas cores e símbolos do Teams.

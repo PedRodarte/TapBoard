@@ -10,21 +10,24 @@ tirar o foco do app que está no monitor principal**.
 1. Dê dois cliques em `build.cmd`. Ele compila o `TapBoard.cs` com o compilador
    que já vem no Windows, gera o `TapBoard.exe` e abre o painel.
 2. Depois disso, basta abrir o `TapBoard.exe`.
-3. Para mudar botões, ícones, fonte, tema ou monitor, abra **Configurações** pelo
-   botão do painel ou pelo ícone na bandeja do sistema. Nada disso exige recompilar.
+3. Para pôr botões novos, use **Arquivo > Adicionar botões…** e escolha na lista.
+   Para mudar ícones, fonte, tema ou monitor, toque na engrenagem no canto do painel.
+   Nada disso exige recompilar nem mexer em arquivos.
 
 Ao abrir, o programa cria ou atualiza o próprio atalho no menu Iniciar.
 
-As configurações ficam em `%APPDATA%\TapBoard\configuracoes.xml`, e os ícones
-baixados, em `%APPDATA%\TapBoard\icones`. Se você mover o `TapBoard.exe` com a
+Quem usa o TapBoard não precisa abrir pastas nem editar arquivos: os botões
+prontos e os ícones deles vêm dentro do `.exe`. Por baixo, as configurações ficam em
+`%APPDATA%\TapBoard\configuracoes.xml`, e só os ícones buscados na internet ou
+escolhidos de um arquivo são copiados para `%APPDATA%\TapBoard\icones`. Se você mover o `TapBoard.exe` com a
 opção de iniciar com o Windows ativa, abra-o uma vez no novo lugar.
 
-O botão **Janela / Tela cheia** alterna o modo. Em janela, valem os controles
+**Exibir > Tela cheia** alterna o modo. Em janela, valem os controles
 comuns do Windows: barra de título, bordas, maximizar, minimizar e enquadramento.
 Para sair, use o ✕ da janela ou o ícone do TapBoard na bandeja do sistema.
 
-O painel abre no tema do Windows até você escolher outro: o botão **Tema claro /
-escuro** alterna na hora e a escolha fica salva.
+O painel abre no tema do Windows até você escolher outro em **Exibir**. A escolha
+fica salva.
 
 ## Hardware (contexto para decisões de layout e DPI)
 
@@ -49,7 +52,13 @@ escuro** alterna na hora e a escolha fica salva.
 - Distribuição: só o `TapBoard.exe`, sem instalador e sem cadastro. O executável
   é gerado e fica fora do Git.
 - Código: `TapBoard.cs` (painel e ações), `Configuracoes.cs` (dados salvos e janela
-  de configurações) e `Icones.cs` (leitor de SVG e busca de ícones).
+  de configurações), `Catalogo.cs` (botões prontos e a janela "Adicionar botões"),
+  `Icones.cs` (leitor de SVG e busca de ícones) e `IconesEmbutidos.cs` (os SVGs que
+  vêm dentro do programa).
+- Ícones embutidos: [Material Design Icons](https://pictogrammers.com/library/mdi/),
+  licença Apache 2.0. Na configuração, aparecem como `embutido:mdi-<nome>`. Para
+  incluir outro, acrescente o SVG da Iconify (`https://api.iconify.design/mdi/<nome>.svg`)
+  em `IconesEmbutidos.cs`.
 - O contador de notificações lê, por UI Automation (`UIAutomationClient.dll`, que
   vem no Windows, na pasta `WPF` do .NET Framework), o texto que cada app deixa no
   seu botão da barra de tarefas, o mesmo que os leitores de tela leem. Sem login e
@@ -80,8 +89,9 @@ escuro** alterna na hora e a escolha fica salva.
   usá-las, os atalhos do painel só voltam ao outro app quando ele recebe o foco de novo.
 - A janela de configurações recebe foco de propósito, porque é onde se digita.
 - **Botões ficam salvos nas configurações.** Cada item tem rótulo, cor, ação,
-  parâmetro, ícone, largura e, nos de brilho, o monitor. A lista inicial fica em `Padrao`, no topo de
-  `TapBoard.cs`, e a lógica de layout e de desenho fica separada dela.
+  parâmetro, ícone, largura e, nos de brilho, o monitor. Os botões prontos ficam em
+  `Catalogo.cs`; a lista da primeira vez (`Padrao`, no topo de `TapBoard.cs`) só
+  escolhe alguns deles pelo rótulo.
 - A grade segue a ideia do Bootstrap: 12 colunas fixas, com cada botão ocupando 3,
   6, 9 ou 12 e descendo para a linha seguinte quando não cabe.
 - Ícones SVG são desenhados pelo próprio TapBoard e assumem a cor do texto do
@@ -98,7 +108,7 @@ escuro** alterna na hora e a escolha fica salva.
 | Sistema | recorte de tela, Explorer, VS Code, Gerenciador de Tarefas, bloquear PC |
 
 No topo do painel fica uma barra de menus, como a do Bloco de Notas: Arquivo
-(Configurações, Sair), Exibir (tela cheia, sempre visível, tema) e Ajuda, com a
+(Adicionar botões, Sair), Exibir (tela cheia, sempre visível, tema) e Ajuda, com a
 engrenagem das configurações à direita. Tocar na barra não tira o foco do app em
 uso; abrir um menu ativa o painel, e ao fechar o foco volta para o app. As ações
 de alternar janela, alternar tema e abrir configurações continuam disponíveis
@@ -127,9 +137,24 @@ No atalho valem letras, números, pontuação, `F1` a `F24` e os nomes `Ctrl`,
 `Home`, `End`, `PgUp`, `PgDn`, `PrtSc`, `Cima`, `Baixo`, `Esquerda` e `Direita`.
 Atalho e texto vão para o app em foco, porque o painel nunca toma o foco.
 
+### Adicionar botões
+
+**Arquivo > Adicionar botões…** (ou **Adicionar…** nas configurações) abre uma
+janela com duas abas. Toque nos que quiser e depois em Adicionar.
+
+- **Prontos**, para quem não quer configurar nada: som e microfone, brilho, mídia,
+  atalhos do Windows (recorte, área de trabalho, emojis, histórico da área de
+  transferência, ditado, Gerenciador de Tarefas…), edição (copiar, colar,
+  desfazer…), reuniões (câmera e mão levantada no Teams, Zoom e Meet) e os
+  programas que estiverem instalados (Chrome, Office, Teams, Spotify, Discord,
+  WhatsApp, Steam…). Os programas são detectados pelo registro do Windows.
+- **Macros e personalizados**, modelos para montar o seu: atalho, sequência de
+  teclas, digitar texto, abrir programa, arquivo ou site, rodar comando e brilho
+  num valor escolhido. Depois de adicionar, ajuste o parâmetro no editor.
+
 O mudo do microfone vale para o microfone padrão e o de comunicação, em qualquer
 app. Com o microfone mudo, o botão mostra uma bolinha vermelha e a versão "-off" do
-ícone, se existir (`mdi-microphone-off.svg` para `mdi-microphone.svg`).
+ícone, se existir (`mdi-microphone-off` para `mdi-microphone`).
 
 Botões de dois estados (mudo do som e do microfone) ficam afundados pela metade
 enquanto estão ligados, como uma tecla com trava.
@@ -150,8 +175,7 @@ botões de meia casa com ícone mostram só o ícone. O texto e o ícone diminue
 
 1. Modelos de cores prontos para escolher nas configurações: Escuro (botões pretos
    com um detalhe de cor por grupo), Terrosa (a atual) e Neon (todas as cores vivas)
-2. Catálogo de botões prontos nas configurações (Teams: mutar; OBS: gravar; Steam:
-   abrir jogo...), montados com as ações genéricas
+2. Mais itens no catálogo (OBS: gravar; Steam: abrir um jogo; pastas favoritas)
 3. Vários decks em abas na barra do topo, como as abas do Bloco de Notas, e
    pastas de botões dentro de um deck
 4. Multi-ação: vários passos em sequência, com atraso entre eles

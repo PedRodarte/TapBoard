@@ -20,6 +20,30 @@ static class Icones
     public static readonly string Pasta = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TapBoard", "icones");
 
+    // Ícones que vêm dentro do programa: "embutido:mdi-lock".
+    public const string PREFIXO = "embutido:";
+
+    static bool EhEmbutido(string caminho)
+    {
+        return caminho.StartsWith(PREFIXO, StringComparison.Ordinal);
+    }
+
+    public static bool Existe(string caminho)
+    {
+        return EhEmbutido(caminho)
+            ? IconesEmbutidos.Svg.ContainsKey(caminho.Substring(PREFIXO.Length))
+            : File.Exists(caminho);
+    }
+
+    // Variante("embutido:mdi-microphone", "-off") = "embutido:mdi-microphone-off".
+    public static string Variante(string caminho, string sufixo)
+    {
+        if (EhEmbutido(caminho))
+            return caminho + sufixo;
+        return Path.Combine(Path.GetDirectoryName(caminho),
+            Path.GetFileNameWithoutExtension(caminho) + sufixo + Path.GetExtension(caminho));
+    }
+
     static readonly Dictionary<string, object> carregados = new Dictionary<string, object>();
 
     static object Obter(string caminho)
@@ -30,7 +54,10 @@ static class Icones
 
         try
         {
-            if (Path.GetExtension(caminho).Equals(".svg", StringComparison.OrdinalIgnoreCase))
+            string svg;
+            if (EhEmbutido(caminho))
+                icone = IconesEmbutidos.Svg.TryGetValue(caminho.Substring(PREFIXO.Length), out svg) ? IconeVetorial.Ler(svg) : null;
+            else if (Path.GetExtension(caminho).Equals(".svg", StringComparison.OrdinalIgnoreCase))
                 icone = IconeVetorial.Ler(File.ReadAllText(caminho));
             else
                 using (var memoria = new MemoryStream(File.ReadAllBytes(caminho)))
