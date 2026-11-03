@@ -34,7 +34,6 @@ static class Padrao
     const string Midia = "#8A5578";
     const string Sistema = "#6E8B47";
     const string Perigo = "#B4493B";
-    const string Painel_ = "#6A6058";
 
     public static List<Botao> Botoes()
     {
@@ -60,9 +59,6 @@ static class Padrao
             new Botao("Tarefas", Sistema, TipoAcao.Abrir, "taskmgr.exe"),
 
             new Botao("Bloquear PC", Perigo, TipoAcao.BloquearPC),
-            new Botao("Janela / Tela cheia", Painel_, TipoAcao.AlternarJanela),
-            new Botao("Tema claro / escuro", Painel_, TipoAcao.AlternarTema),
-            new Botao("Configurações", Painel_, TipoAcao.Configuracoes),
         };
     }
 }
@@ -1121,6 +1117,58 @@ static class Brilho
     }
 }
 
+// Menus da barra nas cores do tema, com o ✓ na cor do texto.
+class DesenhoDoMenu : ToolStripProfessionalRenderer
+{
+    public DesenhoDoMenu(Tema tema)
+        : base(new CoresDoMenu(tema))
+    {
+        RoundedEdges = false;
+    }
+
+    protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
+    {
+        TextRenderer.DrawText(e.Graphics, "✓", e.Item.Font, Rectangle.Inflate(e.ImageRectangle, 4, 4), e.Item.ForeColor,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+    }
+
+    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+    {
+        e.TextColor = e.Item.ForeColor;
+        base.OnRenderItemText(e);
+    }
+}
+
+class CoresDoMenu : ProfessionalColorTable
+{
+    readonly Color fundo, destaque, borda;
+
+    public CoresDoMenu(Tema tema)
+    {
+        UseSystemColors = false;
+        fundo = tema.Campo;
+        destaque = tema.EscuroNoSistema ? Color.FromArgb(62, 62, 74) : Color.FromArgb(214, 216, 224);
+        borda = tema.EscuroNoSistema ? Color.FromArgb(70, 70, 82) : Color.FromArgb(190, 192, 200);
+    }
+
+    public override Color ToolStripDropDownBackground { get { return fundo; } }
+    public override Color ImageMarginGradientBegin { get { return fundo; } }
+    public override Color ImageMarginGradientMiddle { get { return fundo; } }
+    public override Color ImageMarginGradientEnd { get { return fundo; } }
+    public override Color MenuBorder { get { return borda; } }
+    public override Color MenuItemBorder { get { return destaque; } }
+    public override Color MenuItemSelected { get { return destaque; } }
+    public override Color MenuItemSelectedGradientBegin { get { return destaque; } }
+    public override Color MenuItemSelectedGradientEnd { get { return destaque; } }
+    public override Color MenuItemPressedGradientBegin { get { return destaque; } }
+    public override Color MenuItemPressedGradientEnd { get { return destaque; } }
+    public override Color SeparatorDark { get { return borda; } }
+    public override Color SeparatorLight { get { return fundo; } }
+    public override Color CheckBackground { get { return fundo; } }
+    public override Color CheckSelectedBackground { get { return destaque; } }
+    public override Color CheckPressedBackground { get { return destaque; } }
+}
+
 class Painel : Form
 {
     const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
@@ -1149,6 +1197,9 @@ class Painel : Form
 
     [DllImport("dwmapi.dll")]
     static extern int DwmSetWindowAttribute(IntPtr janela, int atributo, ref int valor, int tamanho);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
 
     static Painel instancia;
     static JanelaConfiguracoes janelaConfiguracoes;
@@ -1487,7 +1538,8 @@ class Painel : Form
 
     void ToqueIniciado(int id, Point naTela)
     {
-        toquesAtivos[id] = BotaoEm(PointToClient(naTela));
+        Point ponto = PointToClient(naTela);
+        toquesAtivos[id] = ponto.Y < ALTURA_DA_BARRA ? NA_BARRA : BotaoEm(ponto);
         Invalidate();
     }
 
@@ -1499,6 +1551,12 @@ class Painel : Form
 
         toquesAtivos.Remove(id);
         Invalidate();
+        if (botao == NA_BARRA)
+        {
+            if (executar)
+                TocarNaBarra(PointToClient(naTela));
+            return;
+        }
         if (executar && botao != NENHUM && botao == BotaoEm(PointToClient(naTela)))
             Executar(botao);
     }
@@ -1529,11 +1587,168 @@ class Painel : Form
         }
     }
 
+    // ===== Barra de menus =====
+    // Faixa no topo, como a do Bloco de Notas: menus à esquerda e a engrenagem das
+    // configurações à direita. É desenhada aqui, e não com MenuStrip, para tocar nela
+    // não ativar a janela, como nos botões; só abrir um menu ativa, e ao fechar o
+    // foco volta para o app que estava em uso.
+
+    const int ALTURA_DA_BARRA = 36;
+    const int NA_BARRA = -2;
+    static readonly string[] MenusDaBarra = { "Arquivo", "Exibir", "Ajuda" };
+    static readonly int ENGRENAGEM = MenusDaBarra.Length;
+    static readonly bool TemMdl2 = Array.Exists(FontFamily.Families, f => f.Name == "Segoe MDL2 Assets");
+
+    readonly Font fonteDaBarra = new Font("Segoe UI", 14f, GraphicsUnit.Pixel);
+    readonly Font fonteDaEngrenagem = new Font(TemMdl2 ? "Segoe MDL2 Assets" : "Segoe UI Symbol", 16f, GraphicsUnit.Pixel);
+    readonly Icon iconeDaBarra = IconeDoApp.Bandeja();
+    int menuAberto = NENHUM;
+    IntPtr focoAnterior;
+
+    Rectangle[] ItensDaBarra()
+    {
+        var itens = new Rectangle[MenusDaBarra.Length + 1];
+        int x = 44;
+        for (int i = 0; i < MenusDaBarra.Length; i++)
+        {
+            int largura = TextRenderer.MeasureText(MenusDaBarra[i], fonteDaBarra).Width + 20;
+            itens[i] = new Rectangle(x, 0, largura, ALTURA_DA_BARRA);
+            x += largura;
+        }
+        itens[ENGRENAGEM] = new Rectangle(ClientSize.Width - 48, 0, 48, ALTURA_DA_BARRA);
+        return itens;
+    }
+
+    void DesenharBarra(Graphics g)
+    {
+        using (var linha = new Pen(tema.Campo))
+            g.DrawLine(linha, 0, ALTURA_DA_BARRA - 1, ClientSize.Width, ALTURA_DA_BARRA - 1);
+        g.DrawIcon(iconeDaBarra, new Rectangle(14, (ALTURA_DA_BARRA - 18) / 2, 18, 18));
+
+        Rectangle[] itens = ItensDaBarra();
+        const TextFormatFlags centro = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter;
+        for (int i = 0; i < itens.Length; i++)
+        {
+            if (i == menuAberto)
+                using (var fundo = new SolidBrush(tema.Campo))
+                    g.FillRectangle(fundo, Rectangle.Inflate(itens[i], 0, -4));
+            if (i == ENGRENAGEM)
+                TextRenderer.DrawText(g, TemMdl2 ? "\uE713" : "\u2699", fonteDaEngrenagem, itens[i], tema.TextoBarra, centro);
+            else
+                TextRenderer.DrawText(g, MenusDaBarra[i], fonteDaBarra, itens[i], tema.TextoBarra, centro);
+        }
+    }
+
+    void TocarNaBarra(Point ponto)
+    {
+        Rectangle[] itens = ItensDaBarra();
+        for (int i = 0; i < itens.Length; i++)
+        {
+            if (!itens[i].Contains(ponto))
+                continue;
+            if (i == ENGRENAGEM)
+                AbrirConfiguracoes();
+            else
+                AbrirMenu(i);
+            return;
+        }
+    }
+
+    void AbrirMenu(int indice)
+    {
+        focoAnterior = GetForegroundWindow();
+        Activate();
+
+        ContextMenuStrip menu = MontarMenu(indice);
+        menuAberto = indice;
+        Invalidate();
+        menu.Closed += (s, e) =>
+        {
+            menuAberto = NENHUM;
+            Invalidate();
+            BeginInvoke((Action)menu.Dispose);
+            // Clicar em outro app já levou o foco para ele; Esc ou toque fora, não.
+            if (e.CloseReason == ToolStripDropDownCloseReason.AppClicked
+                || e.CloseReason == ToolStripDropDownCloseReason.Keyboard)
+                DevolverFoco();
+        };
+        menu.Show(this, new Point(ItensDaBarra()[indice].Left, ALTURA_DA_BARRA));
+    }
+
+    void DevolverFoco()
+    {
+        if (focoAnterior != IntPtr.Zero && focoAnterior != Handle)
+            JanelaDoPrograma.TrazerParaFrente(focoAnterior);
+        focoAnterior = IntPtr.Zero;
+    }
+
+    ContextMenuStrip MontarMenu(int indice)
+    {
+        Configuracoes c = Configuracoes.Atual;
+        var menu = new ContextMenuStrip
+        {
+            Font = new Font("Segoe UI", 15f, GraphicsUnit.Pixel),
+            ForeColor = tema.TextoBarra,
+            Renderer = new DesenhoDoMenu(tema),
+            ShowImageMargin = false,
+            ShowCheckMargin = true,
+        };
+        switch (indice)
+        {
+            case 0:
+                Item(menu, "Configurações…", false, false, AbrirConfiguracoes);
+                menu.Items.Add(new ToolStripSeparator());
+                Item(menu, "Sair do TapBoard", false, false, Application.Exit);
+                break;
+            case 1:
+                Item(menu, "Tela cheia", !c.AbrirEmJanela, true, AlternarJanela);
+                Item(menu, "Sempre visível", c.SempreVisivel, true, () =>
+                {
+                    c.SempreVisivel = !c.SempreVisivel;
+                    c.Salvar();
+                    AplicarConfiguracoes();
+                });
+                menu.Items.Add(new ToolStripSeparator());
+                Item(menu, "Tema igual ao Windows", c.Tema == EscolhaDeTema.Windows, true, () => EscolherTema(EscolhaDeTema.Windows));
+                Item(menu, "Tema claro", c.Tema == EscolhaDeTema.Claro, true, () => EscolherTema(EscolhaDeTema.Claro));
+                Item(menu, "Tema escuro", c.Tema == EscolhaDeTema.Escuro, true, () => EscolherTema(EscolhaDeTema.Escuro));
+                break;
+            default:
+                Item(menu, "Abrir pasta das configurações", false, false, () => Process.Start("explorer.exe", Configuracoes.Pasta));
+                Item(menu, "Sobre o TapBoard", false, false, () => MessageBox.Show(this,
+                    "TapBoard\n\nPainel de botões para monitor touch.\nConfigurações em " + Configuracoes.Pasta,
+                    "Sobre o TapBoard"));
+                break;
+        }
+        return menu;
+    }
+
+    // Itens que não abrem janela devolvem o foco ao app que estava em uso.
+    void Item(ContextMenuStrip menu, string texto, bool marcado, bool devolverFoco, Action acao)
+    {
+        var item = new ToolStripMenuItem(texto) { Checked = marcado, Padding = new Padding(0, 6, 0, 6) };
+        item.Click += (s, e) =>
+        {
+            acao();
+            if (devolverFoco)
+                DevolverFoco();
+        };
+        menu.Items.Add(item);
+    }
+
+    static void EscolherTema(EscolhaDeTema escolha)
+    {
+        Configuracoes.Atual.Tema = escolha;
+        Configuracoes.Atual.Salvar();
+        AplicarConfiguracoes();
+    }
+
     // ===== Layout e desenho =====
 
     Rectangle AreaDosBotoes()
     {
-        return ClientRectangle;
+        Rectangle tudo = ClientRectangle;
+        return Rectangle.FromLTRB(tudo.Left, tudo.Top + ALTURA_DA_BARRA, tudo.Right, tudo.Bottom);
     }
 
     // A grade é contada em meias casas, para caber o botão de meia casa.
@@ -1692,6 +1907,8 @@ class Painel : Form
         {
             alinhamento.Alignment = StringAlignment.Center;
             alinhamento.LineAlignment = StringAlignment.Center;
+
+            DesenharBarra(g);
 
             List<Botao> botoes = Configuracoes.Atual.Botoes;
             Metade[] metades = Metades(ColunasDaGrade());

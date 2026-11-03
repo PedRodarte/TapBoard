@@ -103,7 +103,7 @@ public class Botao
 
 public class Configuracoes
 {
-    static readonly string Pasta = Path.Combine(
+    public static readonly string Pasta = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TapBoard");
     static readonly string Arquivo = Path.Combine(Pasta, "configuracoes.xml");
     static readonly XmlSerializer Serializador = new XmlSerializer(typeof(Configuracoes));

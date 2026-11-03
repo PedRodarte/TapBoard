@@ -96,7 +96,13 @@ escuro** alterna na hora e a escolha fica salva.
 | Áudio   | volume +/−, mudo, mudo do microfone |
 | Mídia   | play/pause, anterior, próxima |
 | Sistema | recorte de tela, Explorer, VS Code, Gerenciador de Tarefas, bloquear PC |
-| Painel  | alternar entre janela e tela cheia, alternar tema claro e escuro |
+
+No topo do painel fica uma barra de menus, como a do Bloco de Notas: Arquivo
+(Configurações, Sair), Exibir (tela cheia, sempre visível, tema) e Ajuda, com a
+engrenagem das configurações à direita. Tocar na barra não tira o foco do app em
+uso; abrir um menu ativa o painel, e ao fechar o foco volta para o app. As ações
+de alternar janela, alternar tema e abrir configurações continuam disponíveis
+para quem quiser um botão.
 
 Botões que abrem um programa trazem para a frente a janela dele, se já estiver
 aberto (menos o Explorer, que abre uma janela nova). Eles também mostram um
@@ -146,7 +152,8 @@ botões de meia casa com ícone mostram só o ícone. O texto e o ícone diminue
    com um detalhe de cor por grupo), Terrosa (a atual) e Neon (todas as cores vivas)
 2. Catálogo de botões prontos nas configurações (Teams: mutar; OBS: gravar; Steam:
    abrir jogo...), montados com as ações genéricas
-3. Páginas e pastas de botões (navegação dentro do deck)
+3. Vários decks em abas na barra do topo, como as abas do Bloco de Notas, e
+   pastas de botões dentro de um deck
 4. Multi-ação: vários passos em sequência, com atraso entre eles
 5. Slider de brilho arrastável pelo toque
 6. Perfis por app em foco (troca de página conforme o executável ativo no monitor principal)
