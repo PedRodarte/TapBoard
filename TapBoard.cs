@@ -26,12 +26,12 @@ static class Padrao
 
     public const string Fonte = "Segoe UI Semibold";
 
-    const string Brilho = "#D97706";
-    const string Audio = "#0A7CF0";
-    const string Midia = "#8B3DFF";
-    const string Sistema = "#0E9F4F";
-    const string Perigo = "#E11D2E";
-    const string Painel_ = "#566178";
+    const string Brilho = "#C27A34";
+    const string Audio = "#3F7A80";
+    const string Midia = "#8A5578";
+    const string Sistema = "#6E8B47";
+    const string Perigo = "#B4493B";
+    const string Painel_ = "#6A6058";
 
     public static List<Botao> Botoes()
     {
