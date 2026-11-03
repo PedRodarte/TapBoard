@@ -14,6 +14,7 @@ public static class GeradorDeIcone
     const float Tela = 1092f;
     static readonly Color Fundo = Color.FromArgb(0x1E, 0x1F, 0x23);
     static readonly Color Laranja = Color.FromArgb(0xF0, 0x8A, 0x28);
+    static readonly Color LaranjaLateral = Color.FromArgb(0x9C, 0x52, 0x10);
 
     public static void Gerar(string destino)
     {
@@ -64,7 +65,7 @@ public static class GeradorDeIcone
             Tecla(g, face, lateral, 153, 153, 419, 475);
             Tecla(g, face, lateral, 588, 153, 419, 475);
             Tecla(g, face, lateral, 153, 561, 826, 882);
-            Preencher(g, Laranja, 588, 643, 349, 239, 85);
+            Tecla(g, Laranja, LaranjaLateral, 588, 561, 826, 882);
         }
         return imagem;
     }
