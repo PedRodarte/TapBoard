@@ -1614,8 +1614,8 @@ class Painel : Form
 
         int descida = pressionado ? ALTURA_TECLA - 2 : travado ? ALTURA_TECLA / 2 : 0;
         Rectangle face = new Rectangle(area.X, area.Y + descida, area.Width, altura);
-        Color topo = Misturar(cor, Color.White, pressionado ? 0.02f : travado ? 0.04f : 0.12f);
-        Color base_ = Misturar(cor, Color.Black, pressionado ? 0.14f : travado ? 0.12f : 0.05f);
+        Color topo = travado ? Misturar(cor, Color.Black, 0.22f) : Misturar(cor, Color.White, pressionado ? 0.02f : 0.12f);
+        Color base_ = Misturar(cor, Color.Black, pressionado ? 0.14f : travado ? 0.32f : 0.05f);
         using (GraphicsPath forma = Arredondado(face, RAIO_BOTAO))
         using (var fundo = new LinearGradientBrush(face, topo, base_, LinearGradientMode.Vertical))
             g.FillPath(fundo, forma);
