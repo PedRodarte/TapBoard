@@ -293,7 +293,7 @@ class JanelaConfiguracoes : Form
     readonly NumericUpDown campoEspaco = new NumericUpDown { Name = "campoEspaco", Minimum = 0, Maximum = 80, Increment = 4, Width = 80 };
     readonly CheckBox caixaInicio = new CheckBox { Name = "caixaInicio", Text = "Iniciar com o Windows", AutoSize = true };
     readonly CheckBox caixaSempreVisivel = new CheckBox { Name = "caixaSempreVisivel", Text = "Sempre visível sobre as outras janelas", AutoSize = true };
-    readonly CheckBox caixaContadores = new CheckBox { Name = "caixaContadores", Text = "Mostrar o contador de notificações dos apps", AutoSize = true };
+    readonly CheckBox caixaContadores = new CheckBox { Name = "caixaContadores", Text = "Mostrar contador de notificações e status dos apps", AutoSize = true };
     readonly CheckBox caixaBrilhoSoftware = new CheckBox { Name = "caixaBrilhoSoftware", Text = "Escurecer o deck por software", AutoSize = true };
     readonly ListBox lista = new ListBox { Name = "lista", Dock = DockStyle.Fill, IntegralHeight = false };
     readonly TextBox campoRotulo = new TextBox { Name = "campoRotulo", AccessibleName = "Rotulo do botao", Dock = DockStyle.Fill };

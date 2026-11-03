@@ -371,17 +371,29 @@ static class JanelaDoPrograma
     }
 }
 
-// Contador de notificações dos apps, lido do botão de cada um na barra de tarefas.
-// O Teams, por exemplo, escreve ali "Nenhum item, status Disponível" e, com
-// mensagens novas, o número delas. É o mesmo texto que os leitores de tela leem.
+public enum StatusDoApp
+{
+    Nenhum,
+    Disponivel,
+    Ocupado,
+    NaoIncomodar,
+    Ausente,
+    Offline,
+}
+
+// Contador de notificações e status dos apps, lidos do botão de cada um na barra
+// de tarefas. O Teams, por exemplo, escreve ali "Nenhum item, status Disponível" e,
+// com mensagens novas, o número delas. É o mesmo texto que os leitores de tela leem.
 static class Contadores
 {
     const int Intervalo = 3000;
     const string Pacote = @"shell:AppsFolder\";
     const string Prefixo = "Appid: ";
     static readonly Regex Numero = new Regex(@"\d+");
+    static readonly Regex Status = new Regex(@"status\s+(.+?)\.?\s*$", RegexOptions.IgnoreCase);
 
-    static volatile Dictionary<string, int> atuais = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    // Texto de cada app na barra, pela chave do botão.
+    static volatile Dictionary<string, string> atuais = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     static System.Threading.Timer relogio;
 
     public static event Action Mudaram;
@@ -400,9 +412,37 @@ static class Contadores
 
     public static int De(Botao botao)
     {
+        Match numero = Numero.Match(TextoDe(botao));
+        return numero.Success ? int.Parse(numero.Value) : 0;
+    }
+
+    // Os nomes são os do Teams em português; as cores, as do próprio Teams.
+    public static StatusDoApp StatusDe(Botao botao)
+    {
+        Match status = Status.Match(TextoDe(botao));
+        if (!status.Success)
+            return StatusDoApp.Nenhum;
+
+        string nome = status.Groups[1].Value.ToLowerInvariant();
+        if (nome.Contains("disponível") || nome.Contains("disponivel"))
+            return StatusDoApp.Disponivel;
+        if (nome.Contains("incomodar"))
+            return StatusDoApp.NaoIncomodar;
+        if (nome.Contains("ocupad") || nome.Contains("chamada") || nome.Contains("reuni")
+            || nome.Contains("apresent") || nome.Contains("concentr"))
+            return StatusDoApp.Ocupado;
+        if (nome.Contains("ausente") || nome.Contains("volto"))
+            return StatusDoApp.Ausente;
+        if (nome.Contains("offline"))
+            return StatusDoApp.Offline;
+        return StatusDoApp.Nenhum;
+    }
+
+    static string TextoDe(Botao botao)
+    {
         string chave = ChaveDo(botao);
-        int quantidade;
-        return chave != null && atuais.TryGetValue(chave, out quantidade) ? quantidade : 0;
+        string texto;
+        return chave != null && atuais.TryGetValue(chave, out texto) ? texto : "";
     }
 
     // A barra identifica cada app pelo AppID do pacote ou pelo caminho do .exe.
@@ -416,7 +456,7 @@ static class Contadores
 
     static void Ler()
     {
-        var novos = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var novos = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             if (Configuracoes.Atual.MostrarContadores)
@@ -430,9 +470,9 @@ static class Contadores
                     foreach (AutomationElement botao in botoes)
                     {
                         string id = botao.Current.AutomationId ?? "";
-                        Match numero = Numero.Match(botao.Current.HelpText ?? "");
-                        if (id.StartsWith(Prefixo) && numero.Success)
-                            novos[id.Substring(Prefixo.Length)] = int.Parse(numero.Value);
+                        string texto = botao.Current.HelpText ?? "";
+                        if (id.StartsWith(Prefixo) && texto.Length > 0)
+                            novos[id.Substring(Prefixo.Length)] = texto;
                     }
                 }
             }
@@ -465,13 +505,13 @@ static class Contadores
         }
     }
 
-    static bool Iguais(Dictionary<string, int> a, Dictionary<string, int> b)
+    static bool Iguais(Dictionary<string, string> a, Dictionary<string, string> b)
     {
         if (a.Count != b.Count)
             return false;
-        foreach (KeyValuePair<string, int> item in a)
+        foreach (KeyValuePair<string, string> item in a)
         {
-            int valor;
+            string valor;
             if (!b.TryGetValue(item.Key, out valor) || valor != item.Value)
                 return false;
         }
@@ -1297,7 +1337,11 @@ class Painel : Form
             areaDoTexto = new Rectangle(face.X, y + lado, face.Width, face.Bottom - y - lado);
         }
 
-        DesenharContador(g, Contadores.De(botao), face, cor);
+        int quantidade = Contadores.De(botao);
+        if (quantidade > 0)
+            DesenharContador(g, quantidade, face, cor);
+        else
+            DesenharStatus(g, Contadores.StatusDe(botao), face, cor);
 
         if (!temRotulo)
             return;
@@ -1333,6 +1377,45 @@ class Painel : Form
             }
             using (var branco = new SolidBrush(Color.White))
                 g.DrawString(texto, letra, branco, bolha, formato);
+        }
+    }
+
+    // Bolinha de status no canto da face, nas cores e símbolos do Teams.
+    void DesenharStatus(Graphics g, StatusDoApp status, Rectangle face, Color corDoBotao)
+    {
+        Color cor;
+        switch (status)
+        {
+            case StatusDoApp.Disponivel: cor = Color.FromArgb(0x6B, 0xB7, 0x00); break;
+            case StatusDoApp.Ocupado:
+            case StatusDoApp.NaoIncomodar: cor = Color.FromArgb(0xC4, 0x31, 0x4B); break;
+            case StatusDoApp.Ausente: cor = Color.FromArgb(0xFF, 0xAA, 0x44); break;
+            case StatusDoApp.Offline: cor = Color.FromArgb(0x8A, 0x88, 0x86); break;
+            default: return;
+        }
+
+        int diametro = Math.Max(16, (int)(face.Height * 0.3f));
+        int margem = (int)(face.Height * 0.42f * 0.25f);
+        var bolinha = new Rectangle(face.Right - diametro - margem, face.Y + margem, diametro, diametro);
+        using (var fundo = new SolidBrush(cor))
+        using (var aro = new Pen(Misturar(corDoBotao, Color.Black, 0.35f), 2f))
+        {
+            g.FillEllipse(fundo, bolinha);
+            g.DrawEllipse(aro, bolinha);
+        }
+
+        float d = diametro;
+        using (var traco = new Pen(Color.White, Math.Max(2f, d * 0.13f)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
+        {
+            if (status == StatusDoApp.Disponivel)
+                g.DrawLines(traco, new[]
+                {
+                    new PointF(bolinha.X + d * 0.28f, bolinha.Y + d * 0.52f),
+                    new PointF(bolinha.X + d * 0.44f, bolinha.Y + d * 0.67f),
+                    new PointF(bolinha.X + d * 0.72f, bolinha.Y + d * 0.36f),
+                });
+            else if (status == StatusDoApp.NaoIncomodar)
+                g.DrawLine(traco, bolinha.X + d * 0.28f, bolinha.Y + d * 0.5f, bolinha.X + d * 0.72f, bolinha.Y + d * 0.5f);
         }
     }
 
