@@ -15,7 +15,7 @@ using Microsoft.Win32;
 // ===== VALORES PADRÃO: usados até o usuário salvar as configurações =====
 static class Padrao
 {
-    public const int Espaco = 14;
+    public const int Espaco = 24;
     public const int Colunas = 12;
     public const int PassoDaGrade = 3;
     public const int BrilhoMinimoDoDeck = 10;
@@ -916,17 +916,18 @@ class Painel : Form
     {
         Rectangle area = AreaDosBotoes();
         int linhas = Linhas();
-        int altura = (area.Height - Padrao.Espaco * (linhas + 1)) / linhas;
+        int espaco = Configuracoes.Atual.EspacoEntreBotoes;
+        int altura = (area.Height - espaco * (linhas + 1)) / linhas;
         Point posicao = PosicoesNaGrade()[indice];
         int ocupadas = Configuracoes.Atual.Botoes[indice].LarguraNaGrade();
 
         // Fração por coluna, para a sobra não se acumular na borda direita.
-        double coluna = (area.Width - Padrao.Espaco) / (double)Padrao.Colunas;
-        int esquerda = area.X + Padrao.Espaco + (int)Math.Round(posicao.X * coluna);
+        double coluna = (area.Width - espaco) / (double)Padrao.Colunas;
+        int esquerda = area.X + espaco + (int)Math.Round(posicao.X * coluna);
         int direita = area.X + (int)Math.Round((posicao.X + ocupadas) * coluna);
         return new Rectangle(
             esquerda,
-            area.Y + Padrao.Espaco + posicao.Y * (altura + Padrao.Espaco),
+            area.Y + espaco + posicao.Y * (altura + espaco),
             direita - esquerda,
             altura);
     }

@@ -103,6 +103,7 @@ public class Configuracoes
     public EscolhaDeTema Tema = EscolhaDeTema.Windows;
     public string Fonte = Padrao.Fonte;
     public int EscalaFonte = 100;
+    public int EspacoEntreBotoes = Padrao.Espaco;
     public bool SempreVisivel = true;
     public bool BrilhoDeckPorSoftware = true;
     public int BrilhoDeck = 100;
@@ -284,6 +285,7 @@ class JanelaConfiguracoes : Form
     readonly ComboBox comboLargura = Combo("comboLargura");
     readonly ComboBox comboMonitor = Combo("comboMonitor");
     readonly NumericUpDown campoEscala = new NumericUpDown { Name = "campoEscala", Minimum = 50, Maximum = 200, Increment = 10, Width = 80 };
+    readonly NumericUpDown campoEspaco = new NumericUpDown { Name = "campoEspaco", Minimum = 0, Maximum = 80, Increment = 4, Width = 80 };
     readonly CheckBox caixaInicio = new CheckBox { Name = "caixaInicio", Text = "Iniciar com o Windows", AutoSize = true };
     readonly CheckBox caixaSempreVisivel = new CheckBox { Name = "caixaSempreVisivel", Text = "Sempre visível sobre as outras janelas", AutoSize = true };
     readonly CheckBox caixaBrilhoSoftware = new CheckBox { Name = "caixaBrilhoSoftware", Text = "Escurecer o deck por software", AutoSize = true };
@@ -370,9 +372,11 @@ class JanelaConfiguracoes : Form
         grade.Controls.Add(comboFonte, 1, 3);
         grade.Controls.Add(Legenda("Tamanho do texto (%)"), 0, 4);
         grade.Controls.Add(campoEscala, 1, 4);
-        grade.Controls.Add(caixaInicio, 1, 5);
-        grade.Controls.Add(caixaSempreVisivel, 1, 6);
-        grade.Controls.Add(caixaBrilhoSoftware, 1, 7);
+        grade.Controls.Add(Legenda("Espaço entre botões (px)"), 0, 5);
+        grade.Controls.Add(campoEspaco, 1, 5);
+        grade.Controls.Add(caixaInicio, 1, 6);
+        grade.Controls.Add(caixaSempreVisivel, 1, 7);
+        grade.Controls.Add(caixaBrilhoSoftware, 1, 8);
 
         var grupo = new GroupBox { Text = "Geral", Dock = DockStyle.Fill };
         grupo.Controls.Add(grade);
@@ -540,6 +544,7 @@ class JanelaConfiguracoes : Form
         Selecionar(comboFonte, copia.Fonte);
 
         campoEscala.Value = Math.Max(50, Math.Min(200, copia.EscalaFonte));
+        campoEspaco.Value = Math.Max(0, Math.Min(80, copia.EspacoEntreBotoes));
         caixaInicio.Checked = InicioComWindows.Ativo;
         caixaSempreVisivel.Checked = copia.SempreVisivel;
         caixaBrilhoSoftware.Checked = copia.BrilhoDeckPorSoftware;
@@ -759,6 +764,7 @@ class JanelaConfiguracoes : Form
         copia.Tema = (EscolhaDeTema)Valor(comboTema);
         copia.Fonte = (string)Valor(comboFonte);
         copia.EscalaFonte = (int)campoEscala.Value;
+        copia.EspacoEntreBotoes = (int)campoEspaco.Value;
         copia.SempreVisivel = caixaSempreVisivel.Checked;
         copia.BrilhoDeckPorSoftware = caixaBrilhoSoftware.Checked;
         copia.BrilhoDeck = Configuracoes.Atual.BrilhoDeck;
