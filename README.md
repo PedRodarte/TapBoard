@@ -128,6 +128,14 @@ app. Com o microfone mudo, o botão mostra uma bolinha vermelha e a versão "-of
 Botões de dois estados (mudo do som e do microfone) ficam afundados pela metade
 enquanto estão ligados, como uma tecla com trava.
 
+### Grade
+
+Por padrão são 4 botões por linha. Em Configurações > Geral, "Botões por linha:
+Conforme a largura do painel" liga a grade fluida: cabem tantos botões por linha
+quantos a "Largura mínima do botão" permitir, então um painel mais largo ganha
+colunas e um mais estreito perde. A largura de cada botão é contada em casas
+(1, 2 ou 3) ou "Linha inteira". O texto e o ícone diminuem se o botão ficar estreito.
+
 ## Roadmap (ideias futuras, por ordem aproximada)
 
 1. Modelos de cores prontos para escolher nas configurações: Escuro (botões pretos

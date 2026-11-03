@@ -107,6 +107,8 @@ public class Configuracoes
     public string Fonte = Padrao.Fonte;
     public int EscalaFonte = 100;
     public int EspacoEntreBotoes = Padrao.Espaco;
+    public bool GradeFluida = false;
+    public int LarguraMinimaDoBotao = 300;
     public bool IconeAoLado = true;
     public bool MostrarContadores = true;
     public bool SempreVisivel = true;
@@ -268,10 +270,10 @@ class JanelaConfiguracoes : Form
 
     static readonly Opcao[] OpcoesDeLargura =
     {
-        new Opcao(3, "3 colunas (1/4 da linha)"),
-        new Opcao(6, "6 colunas (metade)"),
-        new Opcao(9, "9 colunas (3/4 da linha)"),
-        new Opcao(12, "12 colunas (linha inteira)"),
+        new Opcao(3, "1 casa"),
+        new Opcao(6, "2 casas"),
+        new Opcao(9, "3 casas"),
+        new Opcao(12, "Linha inteira"),
     };
 
     static readonly Opcao[] OpcoesDeMonitor =
@@ -291,12 +293,14 @@ class JanelaConfiguracoes : Form
     readonly ComboBox comboModo = Combo("comboModo");
     readonly ComboBox comboTema = Combo("comboTema");
     readonly ComboBox comboIcone = Combo("comboIcone");
+    readonly ComboBox comboGrade = Combo("comboGrade");
     readonly ComboBox comboAcao = Combo("comboAcao");
     readonly ComboBox comboFonte = Combo("comboFonte");
     readonly ComboBox comboLargura = Combo("comboLargura");
     readonly ComboBox comboMonitor = Combo("comboMonitor");
     readonly NumericUpDown campoEscala = new NumericUpDown { Name = "campoEscala", Minimum = 50, Maximum = 200, Increment = 10, Width = 80 };
     readonly NumericUpDown campoEspaco = new NumericUpDown { Name = "campoEspaco", Minimum = 0, Maximum = 80, Increment = 4, Width = 80 };
+    readonly NumericUpDown campoLarguraMinima = new NumericUpDown { Name = "campoLarguraMinima", Minimum = 120, Maximum = 800, Increment = 20, Width = 80 };
     readonly CheckBox caixaInicio = new CheckBox { Name = "caixaInicio", Text = "Iniciar com o Windows", AutoSize = true };
     readonly CheckBox caixaSempreVisivel = new CheckBox { Name = "caixaSempreVisivel", Text = "Sempre visível sobre as outras janelas", AutoSize = true };
     readonly CheckBox caixaContadores = new CheckBox { Name = "caixaContadores", Text = "Mostrar contador de notificações e status dos apps", AutoSize = true };
@@ -389,10 +393,14 @@ class JanelaConfiguracoes : Form
         grade.Controls.Add(campoEspaco, 1, 5);
         grade.Controls.Add(Legenda("Ícone com texto"), 0, 6);
         grade.Controls.Add(comboIcone, 1, 6);
-        grade.Controls.Add(caixaInicio, 1, 7);
-        grade.Controls.Add(caixaSempreVisivel, 1, 8);
-        grade.Controls.Add(caixaBrilhoSoftware, 1, 9);
-        grade.Controls.Add(caixaContadores, 1, 10);
+        grade.Controls.Add(Legenda("Botões por linha"), 0, 7);
+        grade.Controls.Add(comboGrade, 1, 7);
+        grade.Controls.Add(Legenda("Largura mínima do botão (px)"), 0, 8);
+        grade.Controls.Add(campoLarguraMinima, 1, 8);
+        grade.Controls.Add(caixaInicio, 1, 9);
+        grade.Controls.Add(caixaSempreVisivel, 1, 10);
+        grade.Controls.Add(caixaBrilhoSoftware, 1, 11);
+        grade.Controls.Add(caixaContadores, 1, 12);
 
         var grupo = new GroupBox { Text = "Geral", Dock = DockStyle.Fill };
         grupo.Controls.Add(grade);
@@ -559,12 +567,19 @@ class JanelaConfiguracoes : Form
         comboIcone.Items.Add(new Opcao(false, "Acima do texto"));
         Selecionar(comboIcone, copia.IconeAoLado);
 
+        comboGrade.Items.Add(new Opcao(false, "Sempre 4"));
+        comboGrade.Items.Add(new Opcao(true, "Conforme a largura do painel"));
+        Selecionar(comboGrade, copia.GradeFluida);
+        comboGrade.SelectedIndexChanged += (s, e) => campoLarguraMinima.Enabled = (bool)Valor(comboGrade);
+        campoLarguraMinima.Enabled = copia.GradeFluida;
+
         foreach (FontFamily familia in FontFamily.Families)
             comboFonte.Items.Add(new Opcao(familia.Name, familia.Name));
         Selecionar(comboFonte, copia.Fonte);
 
         campoEscala.Value = Math.Max(50, Math.Min(200, copia.EscalaFonte));
         campoEspaco.Value = Math.Max(0, Math.Min(80, copia.EspacoEntreBotoes));
+        campoLarguraMinima.Value = Math.Max(120, Math.Min(800, copia.LarguraMinimaDoBotao));
         caixaInicio.Checked = InicioComWindows.Ativo;
         caixaSempreVisivel.Checked = copia.SempreVisivel;
         caixaBrilhoSoftware.Checked = copia.BrilhoDeckPorSoftware;
@@ -795,6 +810,8 @@ class JanelaConfiguracoes : Form
         copia.Fonte = (string)Valor(comboFonte);
         copia.EscalaFonte = (int)campoEscala.Value;
         copia.EspacoEntreBotoes = (int)campoEspaco.Value;
+        copia.GradeFluida = (bool)Valor(comboGrade);
+        copia.LarguraMinimaDoBotao = (int)campoLarguraMinima.Value;
         copia.SempreVisivel = caixaSempreVisivel.Checked;
         copia.BrilhoDeckPorSoftware = caixaBrilhoSoftware.Checked;
         copia.MostrarContadores = caixaContadores.Checked;

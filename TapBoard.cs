@@ -1489,6 +1489,25 @@ class Painel : Form
         return ClientRectangle;
     }
 
+    // Na grade fluida, cada casa (3 colunas) tem pelo menos a largura mínima do botão:
+    // painel mais largo, mais botões por linha. Na fixa, são sempre 12 colunas.
+    int ColunasDaGrade()
+    {
+        Configuracoes c = Configuracoes.Atual;
+        if (!c.GradeFluida)
+            return Padrao.Colunas;
+        int espaco = c.EspacoEntreBotoes;
+        int casas = (AreaDosBotoes().Width - espaco) / (Math.Max(40, c.LarguraMinimaDoBotao) + espaco);
+        return Math.Max(1, casas) * Padrao.PassoDaGrade;
+    }
+
+    // "Linha inteira" ocupa a linha toda; os outros, até o que couber na linha.
+    static int Ocupadas(Botao botao, int colunas)
+    {
+        int largura = botao.LarguraNaGrade();
+        return largura >= Padrao.Colunas ? colunas : Math.Min(largura, colunas);
+    }
+
     int BotaoEm(Point posicao)
     {
         for (int i = 0; i < Configuracoes.Atual.Botoes.Count; i++)
@@ -1498,15 +1517,15 @@ class Painel : Form
     }
 
     // Cada botão ocupa 3, 6, 9 ou 12 colunas; se não couber, desce para a linha seguinte.
-    static Point[] PosicoesNaGrade()
+    static Point[] PosicoesNaGrade(int colunas)
     {
         List<Botao> botoes = Configuracoes.Atual.Botoes;
         var posicoes = new Point[botoes.Count];
         int coluna = 0, linha = 0;
         for (int i = 0; i < botoes.Count; i++)
         {
-            int largura = botoes[i].LarguraNaGrade();
-            if (coluna + largura > Padrao.Colunas)
+            int largura = Ocupadas(botoes[i], colunas);
+            if (coluna + largura > colunas)
             {
                 coluna = 0;
                 linha++;
@@ -1517,23 +1536,24 @@ class Painel : Form
         return posicoes;
     }
 
-    static int Linhas()
+    int Linhas()
     {
-        Point[] posicoes = PosicoesNaGrade();
+        Point[] posicoes = PosicoesNaGrade(ColunasDaGrade());
         return posicoes.Length == 0 ? 1 : posicoes[posicoes.Length - 1].Y + 1;
     }
 
     Rectangle RetanguloDoBotao(int indice)
     {
         Rectangle area = AreaDosBotoes();
+        int colunas = ColunasDaGrade();
         int linhas = Linhas();
         int espaco = Configuracoes.Atual.EspacoEntreBotoes;
         int altura = (area.Height - espaco * (linhas + 1)) / linhas;
-        Point posicao = PosicoesNaGrade()[indice];
-        int ocupadas = Configuracoes.Atual.Botoes[indice].LarguraNaGrade();
+        Point posicao = PosicoesNaGrade(colunas)[indice];
+        int ocupadas = Ocupadas(Configuracoes.Atual.Botoes[indice], colunas);
 
         // Fração por coluna, para a sobra não se acumular na borda direita.
-        double coluna = (area.Width - espaco) / (double)Padrao.Colunas;
+        double coluna = (area.Width - espaco) / (double)colunas;
         int esquerda = area.X + espaco + (int)Math.Round(posicao.X * coluna);
         int direita = area.X + (int)Math.Round((posicao.X + ocupadas) * coluna);
         return new Rectangle(
@@ -1548,7 +1568,13 @@ class Painel : Form
         if (fonte != null)
             fonte.Dispose();
         Configuracoes c = Configuracoes.Atual;
-        float tamanho = Math.Max(14f, AreaDosBotoes().Height / Linhas() * 0.16f * c.EscalaFonte / 100f);
+        // Pela altura da linha, mas sem passar do que cabe na largura de uma casa:
+        // na grade fluida larga as linhas ficam altas e o texto quebraria no meio das palavras.
+        Rectangle area = AreaDosBotoes();
+        int casas = ColunasDaGrade() / Padrao.PassoDaGrade;
+        float pelaAltura = area.Height / Linhas() * 0.16f;
+        float pelaLargura = (area.Width / (float)casas - c.EspacoEntreBotoes) * 0.07f;
+        float tamanho = Math.Max(14f, Math.Min(pelaAltura, pelaLargura) * c.EscalaFonte / 100f);
         fonte = new Font(c.Fonte, tamanho, GraphicsUnit.Pixel);
     }
 
@@ -1634,9 +1660,10 @@ class Painel : Form
         if (temIcone && temRotulo && Configuracoes.Atual.IconeAoLado)
         {
             // Ícone e texto formam um bloco centralizado, com o ícone à esquerda.
-            int lado = (int)(face.Height * PROPORCAO_ICONE_AO_LADO);
+            // Em botão alto e estreito (grade fluida), a largura também limita o ícone.
+            int lado = Math.Min((int)(face.Height * PROPORCAO_ICONE_AO_LADO), face.Width / 6);
             int folga = lado / 3;
-            int margem = face.Height / 5;
+            int margem = Math.Min(face.Height / 5, face.Width / 12);
             int maximo = Math.Max(1, face.Width - lado - folga - margem * 2);
             int largura = Math.Min(maximo, (int)Math.Ceiling(g.MeasureString(botao.Rotulo, fonte).Width));
             int x = face.X + (face.Width - lado - folga - largura) / 2;
