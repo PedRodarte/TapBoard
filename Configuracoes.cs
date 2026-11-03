@@ -26,6 +26,9 @@ public enum TipoAcao
     AlternarJanela,
     AlternarTema,
     Configuracoes,
+    Digitar,
+    Comando,
+    MicrofoneMudo,
 }
 
 public enum AlvoDoBrilho
@@ -249,11 +252,14 @@ class JanelaConfiguracoes : Form
         new Opcao(TipoAcao.VolumeMenos, "Volume: diminuir"),
         new Opcao(TipoAcao.VolumeMais, "Volume: aumentar"),
         new Opcao(TipoAcao.Mudo, "Volume: mudo"),
+        new Opcao(TipoAcao.MicrofoneMudo, "Microfone: mudo"),
         new Opcao(TipoAcao.MidiaAnterior, "Mídia: anterior"),
         new Opcao(TipoAcao.MidiaPlayPause, "Mídia: play / pause"),
         new Opcao(TipoAcao.MidiaProxima, "Mídia: próxima"),
-        new Opcao(TipoAcao.Atalho, "Atalho de teclado", "Teclas (Ctrl+Shift+S)"),
+        new Opcao(TipoAcao.Atalho, "Atalho de teclado", "Teclas (Ctrl+Shift+M)"),
+        new Opcao(TipoAcao.Digitar, "Digitar texto", "Texto"),
         new Opcao(TipoAcao.Abrir, "Abrir programa, arquivo ou site", "Caminho ou endereço"),
+        new Opcao(TipoAcao.Comando, "Rodar comando", "Linha de comando"),
         new Opcao(TipoAcao.BloquearPC, "Bloquear PC"),
         new Opcao(TipoAcao.AlternarJanela, "Alternar janela / tela cheia"),
         new Opcao(TipoAcao.AlternarTema, "Alternar tema"),
@@ -751,8 +757,16 @@ class JanelaConfiguracoes : Form
                     return "Informe um percentual de 0 a 100.";
                 break;
             case TipoAcao.Atalho:
-                if (Teclado.Interpretar(botao.Parametro) == null)
-                    return "Atalho inválido. Use algo como Ctrl+Shift+S.";
+                if (Teclado.InterpretarSequencia(botao.Parametro) == null)
+                    return "Atalho inválido. Use algo como Ctrl+Shift+M, ou Ctrl+K Ctrl+S para uma sequência.";
+                break;
+            case TipoAcao.Digitar:
+                if (string.IsNullOrEmpty(botao.Parametro))
+                    return "Informe o texto a digitar.";
+                break;
+            case TipoAcao.Comando:
+                if (string.IsNullOrWhiteSpace(botao.Parametro))
+                    return "Informe o comando.";
                 break;
             case TipoAcao.Abrir:
                 if (string.IsNullOrWhiteSpace(botao.Parametro))

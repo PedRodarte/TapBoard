@@ -130,7 +130,46 @@ static class Teclado
         { "Espaco", Vk.Espaco },
         { "Espaço", Vk.Espaco },
         { "Del", Vk.Delete },
+        { "Enter", (byte)Keys.Enter },
+        { "Backspace", (byte)Keys.Back },
+        { "Ins", (byte)Keys.Insert },
+        { "PgUp", (byte)Keys.PageUp },
+        { "PgDn", (byte)Keys.PageDown },
+        { "PrtSc", (byte)Keys.PrintScreen },
+        { "Cima", (byte)Keys.Up },
+        { "Baixo", (byte)Keys.Down },
+        { "Esquerda", (byte)Keys.Left },
+        { "Direita", (byte)Keys.Right },
     };
+
+    const uint INPUT_KEYBOARD = 1;
+    const uint KEYEVENTF_UNICODE = 0x4;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct EntradaDeTecla
+    {
+        public ushort Vk;
+        public ushort Scan;
+        public uint Flags;
+        public uint Tempo;
+        public IntPtr Extra;
+    }
+
+    // O INPUT do Windows é uma union; as folgas completam o tamanho do maior membro.
+    [StructLayout(LayoutKind.Sequential)]
+    struct Entrada
+    {
+        public uint Tipo;
+        public EntradaDeTecla Tecla;
+        uint folga1;
+        uint folga2;
+    }
+
+    [DllImport("user32.dll")]
+    static extern uint SendInput(uint quantidade, Entrada[] entradas, int tamanho);
+
+    [DllImport("user32.dll")]
+    static extern short VkKeyScan(char letra);
 
     [DllImport("user32.dll")]
     static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
@@ -150,6 +189,54 @@ static class Teclado
             || (vk >= Vk.PageUp && vk <= Vk.Delete)
             || (vk >= Vk.Mudo && vk <= Vk.MidiaPlayPause);
         return estendida ? KEYEVENTF_EXTENDEDKEY : 0;
+    }
+
+    // Várias combinações separadas por espaço viram uma sequência, como "Ctrl+K Ctrl+S".
+    public static List<byte[]> InterpretarSequencia(string texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+            return null;
+
+        var sequencia = new List<byte[]>();
+        string junto = Regex.Replace(texto.Trim(), @"\s*\+\s*", "+");
+        foreach (string combinacao in Regex.Split(junto, @"\s+"))
+        {
+            byte[] teclas = Interpretar(combinacao);
+            if (teclas == null)
+                return null;
+            sequencia.Add(teclas);
+        }
+        return sequencia;
+    }
+
+    public static void EnviarSequencia(List<byte[]> sequencia)
+    {
+        for (int i = 0; i < sequencia.Count; i++)
+        {
+            if (i > 0)
+                Thread.Sleep(30);
+            Enviar(sequencia[i]);
+        }
+    }
+
+    // Digita o texto letra por letra, como se viesse do teclado, em qualquer layout.
+    public static void Digitar(string texto)
+    {
+        var entradas = new List<Entrada>();
+        foreach (char letra in texto.Replace("\r", ""))
+        {
+            bool enter = letra == '\n';
+            foreach (bool soltar in new[] { false, true })
+            {
+                var entrada = new Entrada { Tipo = INPUT_KEYBOARD };
+                entrada.Tecla.Vk = enter ? (ushort)Keys.Enter : (ushort)0;
+                entrada.Tecla.Scan = enter ? (ushort)0 : letra;
+                entrada.Tecla.Flags = (enter ? 0 : KEYEVENTF_UNICODE) | (soltar ? KEYEVENTF_KEYUP : 0);
+                entradas.Add(entrada);
+            }
+        }
+        if (entradas.Count > 0)
+            SendInput((uint)entradas.Count, entradas.ToArray(), Marshal.SizeOf(typeof(Entrada)));
     }
 
     // Converte um texto como "Ctrl+Shift+S". Retorna null se for inválido.
@@ -186,6 +273,17 @@ static class Teclado
         {
             vk = (byte)tecla;
             return true;
+        }
+
+        // Pontuação, como o "." de Win+. (emojis), na tecla do layout atual.
+        if (nome.Length == 1)
+        {
+            short codigo = VkKeyScan(nome[0]);
+            if (codigo != -1 && (codigo >> 8) == 0)
+            {
+                vk = (byte)codigo;
+                return true;
+            }
         }
         return false;
     }
@@ -226,10 +324,19 @@ static class Acoes
                 Teclado.Enviar(Vk.MidiaProxima);
                 break;
             case TipoAcao.Atalho:
-                byte[] teclas = Teclado.Interpretar(botao.Parametro);
-                if (teclas == null)
+                List<byte[]> sequencia = Teclado.InterpretarSequencia(botao.Parametro);
+                if (sequencia == null)
                     throw new ArgumentException("atalho inválido.");
-                Teclado.Enviar(teclas);
+                Teclado.EnviarSequencia(sequencia);
+                break;
+            case TipoAcao.Digitar:
+                Teclado.Digitar(botao.Parametro ?? "");
+                break;
+            case TipoAcao.Comando:
+                Comando.Rodar(botao.Parametro);
+                break;
+            case TipoAcao.MicrofoneMudo:
+                Microfone.Alternar();
                 break;
             case TipoAcao.Abrir:
                 string alvo = Environment.ExpandEnvironmentVariables(botao.Parametro);
@@ -251,6 +358,144 @@ static class Acoes
             case TipoAcao.Configuracoes:
                 Painel.AbrirConfiguracoes();
                 break;
+        }
+    }
+}
+
+// Roda uma linha de comando no cmd, sem janela. Programas que têm janela própria
+// (wt, code, obs) aparecem normalmente. Se o comando falhar, avisa na bandeja.
+static class Comando
+{
+    public static void Rodar(string linha)
+    {
+        var inicio = new ProcessStartInfo("cmd.exe", "/d /s /c \"" + linha + "\"")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        };
+
+        var processo = new Process { StartInfo = inicio, EnableRaisingEvents = true };
+        string ultimaLinha = null;
+        DataReceivedEventHandler guardar = (s, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+                ultimaLinha = e.Data.Trim();
+        };
+        processo.OutputDataReceived += guardar;
+        processo.ErrorDataReceived += guardar;
+        // Exited, e não WaitForExit: um programa aberto pelo comando pode herdar a saída
+        // e mantê-la aberta depois que o cmd termina.
+        processo.Exited += (s, e) =>
+        {
+            int codigo = processo.ExitCode;
+            processo.Dispose();
+            if (codigo != 0)
+                Painel.Avisar("O comando terminou com erro " + codigo
+                    + (ultimaLinha != null ? ": " + ultimaLinha : "."));
+        };
+        processo.Start();
+        processo.BeginOutputReadLine();
+        processo.BeginErrorReadLine();
+    }
+}
+
+// Mudo do microfone padrão pelo Core Audio, o mesmo controle do ícone de som do
+// Windows. Vale para qualquer app de reunião.
+static class Microfone
+{
+    const int Captura = 1;
+    const int PapelConsole = 0;
+    const int PapelComunicacao = 2;
+    const int CLSCTX_ALL = 0x17;
+
+    [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
+    class Enumerador
+    {
+    }
+
+    [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMDeviceEnumerator
+    {
+        void EnumAudioEndpoints();
+        void GetDefaultAudioEndpoint(int fluxo, int papel, out IMMDevice dispositivo);
+    }
+
+    [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMDevice
+    {
+        void Activate(ref Guid interfaceId, int contexto, IntPtr parametros, [MarshalAs(UnmanagedType.IUnknown)] out object objeto);
+    }
+
+    // Só os dois últimos métodos são usados; os anteriores ocupam o lugar na tabela.
+    [ComImport, Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IAudioEndpointVolume
+    {
+        void RegisterControlChangeNotify();
+        void UnregisterControlChangeNotify();
+        void GetChannelCount();
+        void SetMasterVolumeLevel();
+        void SetMasterVolumeLevelScalar();
+        void GetMasterVolumeLevel();
+        void GetMasterVolumeLevelScalar();
+        void SetChannelVolumeLevel();
+        void SetChannelVolumeLevelScalar();
+        void GetChannelVolumeLevel();
+        void GetChannelVolumeLevelScalar();
+        void SetMute([MarshalAs(UnmanagedType.Bool)] bool mudo, ref Guid contexto);
+        void GetMute([MarshalAs(UnmanagedType.Bool)] out bool mudo);
+    }
+
+    // Último estado lido, para desenhar o botão sem chamar o Core Audio a cada pintura.
+    public static volatile bool Mudo;
+
+    public static void Alternar()
+    {
+        IAudioEndpointVolume principal = Volume(PapelConsole);
+        if (principal == null)
+            throw new InvalidOperationException("nenhum microfone encontrado.");
+
+        bool mudo;
+        principal.GetMute(out mudo);
+        Guid contexto = Guid.Empty;
+        principal.SetMute(!mudo, ref contexto);
+        // O de comunicação (Teams, Zoom) pode ser outro microfone: segue o principal.
+        IAudioEndpointVolume comunicacao = Volume(PapelComunicacao);
+        if (comunicacao != null)
+            comunicacao.SetMute(!mudo, ref contexto);
+        Mudo = !mudo;
+    }
+
+    // Lê o estado atual. Retorna true se mudou desde a última leitura.
+    public static bool Atualizar()
+    {
+        IAudioEndpointVolume principal = Volume(PapelConsole);
+        bool mudo = false;
+        if (principal != null)
+            principal.GetMute(out mudo);
+        bool mudou = mudo != Mudo;
+        Mudo = mudo;
+        return mudou;
+    }
+
+    static IAudioEndpointVolume Volume(int papel)
+    {
+        try
+        {
+            var enumerador = (IMMDeviceEnumerator)new Enumerador();
+            IMMDevice dispositivo;
+            enumerador.GetDefaultAudioEndpoint(Captura, papel, out dispositivo);
+            Guid id = typeof(IAudioEndpointVolume).GUID;
+            object volume;
+            dispositivo.Activate(ref id, CLSCTX_ALL, IntPtr.Zero, out volume);
+            return (IAudioEndpointVolume)volume;
+        }
+        catch (COMException)
+        {
+            // Sem microfone ligado.
+            return null;
         }
     }
 }
@@ -419,6 +664,9 @@ static class Contadores
     // Os nomes são os do Teams em português; as cores, as do próprio Teams.
     public static StatusDoApp StatusDe(Botao botao)
     {
+        if (botao.Acao == TipoAcao.MicrofoneMudo)
+            return Microfone.Mudo ? StatusDoApp.NaoIncomodar : StatusDoApp.Nenhum;
+
         Match status = Status.Match(TextoDe(botao));
         if (!status.Success)
             return StatusDoApp.Nenhum;
@@ -483,9 +731,23 @@ static class Contadores
             novos = atuais;
         }
 
+        bool mudou = false;
+        try
+        {
+            mudou = Microfone.Atualizar();
+        }
+        catch (Exception)
+        {
+            // Dispositivo de áudio sendo trocado. Tenta de novo depois.
+        }
+
         if (!Iguais(novos, atuais))
         {
             atuais = novos;
+            mudou = true;
+        }
+        if (mudou)
+        {
             Action aviso = Mudaram;
             if (aviso != null)
                 aviso();

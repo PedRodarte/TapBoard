@@ -93,7 +93,7 @@ escuro** alterna na hora e a escolha fica salva.
 | Grupo   | Ações |
 |---------|-------|
 | Brilho  | −10, +10, 15%, 50%, 100% (DDC/CI), em todos os monitores, só no principal ou só no do deck |
-| Áudio   | volume +/−, mudo |
+| Áudio   | volume +/−, mudo, mudo do microfone |
 | Mídia   | play/pause, anterior, próxima |
 | Sistema | recorte de tela, Explorer, VS Code, Gerenciador de Tarefas, bloquear PC |
 | Painel  | alternar entre janela e tela cheia, alternar tema claro e escuro |
@@ -103,15 +103,38 @@ aberto (menos o Explorer, que abre uma janela nova). Eles também mostram um
 contador vermelho quando o app tem notificações na barra de tarefas, como o Teams
 ou o WhatsApp.
 
+### Ações genéricas
+
+Três ações cobrem a maior parte dos programas: num levantamento de 124 programas
+para Windows, atalho de teclado, abrir endereço e rodar comando servem para 88%
+deles, com peso pela prioridade de cada um.
+
+| Ação | O que pôr no parâmetro | Exemplos |
+|------|------------------------|----------|
+| Atalho de teclado | Teclas unidas por `+`. Várias combinações separadas por espaço viram uma sequência. | `Ctrl+Shift+M` (mutar no Teams), `Alt+F10` (replay da NVIDIA), `Win+.` (emojis), `Ctrl+K Ctrl+S` |
+| Digitar texto | O texto, digitado letra por letra no app em foco. | assinatura, e-mail, resposta pronta |
+| Abrir programa, arquivo ou site | Caminho, site ou URI. | `ms-settings:sound`, `steam://rungameid/<ID>`, `obsidian://`, `https://docs.new` |
+| Rodar comando | Uma linha do cmd, rodada sem janela, a partir da pasta do usuário. Se terminar com erro, aparece um aviso na bandeja. | `wt -p PowerShell -d C:\AIProjects`, `cd /d C:\AIProjects\Blog && git pull`, `wsl --shutdown` |
+
+No atalho valem letras, números, pontuação, `F1` a `F24` e os nomes `Ctrl`,
+`Shift`, `Alt`, `Win`, `Esc`, `Enter`, `Tab`, `Espaço`, `Backspace`, `Del`, `Ins`,
+`Home`, `End`, `PgUp`, `PgDn`, `PrtSc`, `Cima`, `Baixo`, `Esquerda` e `Direita`.
+Atalho e texto vão para o app em foco, porque o painel nunca toma o foco.
+
+O mudo do microfone vale para o microfone padrão e o de comunicação, em qualquer
+app. Com o microfone mudo, o botão mostra uma bolinha vermelha.
+
 ## Roadmap (ideias futuras, por ordem aproximada)
 
 1. Modelos de cores prontos para escolher nas configurações: Escuro (botões pretos
    com um detalhe de cor por grupo), Terrosa (a atual) e Neon (todas as cores vivas)
-2. Páginas e pastas de botões (navegação dentro do deck)
-3. Slider de brilho arrastável pelo toque
-4. Perfis por app em foco (troca de página conforme o executável ativo no monitor principal)
-5. Mutar o microfone com indicador de estado no botão
-6. Controle de OBS (WebSocket) e Discord
+2. Catálogo de botões prontos nas configurações (Teams: mutar; OBS: gravar; Steam:
+   abrir jogo...), montados com as ações genéricas
+3. Páginas e pastas de botões (navegação dentro do deck)
+4. Multi-ação: vários passos em sequência, com atraso entre eles
+5. Slider de brilho arrastável pelo toque
+6. Perfis por app em foco (troca de página conforme o executável ativo no monitor principal)
+7. Controle de OBS (WebSocket) e Discord
 
 ## Regras para o Claude neste projeto
 
