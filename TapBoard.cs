@@ -194,6 +194,13 @@ static class Acoes
     [DllImport("user32.dll")]
     static extern bool LockWorkStation();
 
+    // Libera o programa aberto para vir à frente. O TapBoard não fica em foco,
+    // então sem isso o Windows barra, por exemplo, o VS Code já aberto.
+    // Funciona porque o toque ou o clique que acabou de chegar foi para o TapBoard.
+    [DllImport("user32.dll")]
+    static extern bool AllowSetForegroundWindow(int idDoProcesso);
+    const int ASFW_ANY = -1;
+
     public static void Executar(Botao botao)
     {
         switch (botao.Acao)
@@ -229,6 +236,7 @@ static class Acoes
                 Teclado.Enviar(teclas);
                 break;
             case TipoAcao.Abrir:
+                AllowSetForegroundWindow(ASFW_ANY);
                 Process.Start(Environment.ExpandEnvironmentVariables(botao.Parametro));
                 break;
             case TipoAcao.BloquearPC:
