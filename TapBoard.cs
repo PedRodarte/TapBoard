@@ -9,7 +9,9 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Threading;
+using System.Windows.Automation;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -369,6 +371,114 @@ static class JanelaDoPrograma
     }
 }
 
+// Contador de notificações dos apps, lido do botão de cada um na barra de tarefas.
+// O Teams, por exemplo, escreve ali "Nenhum item, status Disponível" e, com
+// mensagens novas, o número delas. É o mesmo texto que os leitores de tela leem.
+static class Contadores
+{
+    const int Intervalo = 3000;
+    const string Pacote = @"shell:AppsFolder\";
+    const string Prefixo = "Appid: ";
+    static readonly Regex Numero = new Regex(@"\d+");
+
+    static volatile Dictionary<string, int> atuais = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+    static System.Threading.Timer relogio;
+
+    public static event Action Mudaram;
+
+    public static void Iniciar()
+    {
+        relogio = new System.Threading.Timer(estado => Ler(), null, 0, Timeout.Infinite);
+    }
+
+    public static void Parar()
+    {
+        if (relogio != null)
+            relogio.Dispose();
+        relogio = null;
+    }
+
+    public static int De(Botao botao)
+    {
+        string chave = ChaveDo(botao);
+        int quantidade;
+        return chave != null && atuais.TryGetValue(chave, out quantidade) ? quantidade : 0;
+    }
+
+    // A barra identifica cada app pelo AppID do pacote ou pelo caminho do .exe.
+    static string ChaveDo(Botao botao)
+    {
+        if (botao.Acao != TipoAcao.Abrir || string.IsNullOrWhiteSpace(botao.Parametro))
+            return null;
+        string alvo = Environment.ExpandEnvironmentVariables(botao.Parametro.Trim());
+        return alvo.StartsWith(Pacote, StringComparison.OrdinalIgnoreCase) ? alvo.Substring(Pacote.Length) : alvo;
+    }
+
+    static void Ler()
+    {
+        var novos = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            if (Configuracoes.Atual.MostrarContadores)
+            {
+                AutomationElement barra = AutomationElement.RootElement.FindFirst(TreeScope.Children,
+                    new PropertyCondition(AutomationElement.ClassNameProperty, "Shell_TrayWnd"));
+                if (barra != null)
+                {
+                    AutomationElementCollection botoes = barra.FindAll(TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.ClassNameProperty, "Taskbar.TaskListButtonAutomationPeer"));
+                    foreach (AutomationElement botao in botoes)
+                    {
+                        string id = botao.Current.AutomationId ?? "";
+                        Match numero = Numero.Match(botao.Current.HelpText ?? "");
+                        if (id.StartsWith(Prefixo) && numero.Success)
+                            novos[id.Substring(Prefixo.Length)] = int.Parse(numero.Value);
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // A barra pode estar sendo recriada (Explorer reiniciando). Tenta de novo depois.
+            novos = atuais;
+        }
+
+        if (!Iguais(novos, atuais))
+        {
+            atuais = novos;
+            Action aviso = Mudaram;
+            if (aviso != null)
+                aviso();
+        }
+
+        System.Threading.Timer proximo = relogio;
+        if (proximo != null)
+        {
+            try
+            {
+                proximo.Change(Intervalo, Timeout.Infinite);
+            }
+            catch (ObjectDisposedException)
+            {
+                // O painel fechou durante a leitura.
+            }
+        }
+    }
+
+    static bool Iguais(Dictionary<string, int> a, Dictionary<string, int> b)
+    {
+        if (a.Count != b.Count)
+            return false;
+        foreach (KeyValuePair<string, int> item in a)
+        {
+            int valor;
+            if (!b.TryGetValue(item.Key, out valor) || valor != item.Value)
+                return false;
+        }
+        return true;
+    }
+}
+
 // Ícone do TapBoard, embutido no .exe pelo build.cmd (/resource:TapBoard.ico).
 static class IconeDoApp
 {
@@ -658,6 +768,7 @@ class Painel : Form
     const float PROPORCAO_ICONE = 0.48f;
     const float PROPORCAO_SO_ICONE = 0.62f;
     const float PROPORCAO_ICONE_AO_LADO = 0.42f;
+    static readonly Color COR_CONTADOR = Color.FromArgb(0xE5, 0x48, 0x4D);
 
     [DllImport("dwmapi.dll")]
     static extern int DwmSetWindowAttribute(IntPtr janela, int atributo, ref int valor, int tamanho);
@@ -696,6 +807,14 @@ class Painel : Form
         iconeBandeja.Visible = true;
 
         SystemEvents.DisplaySettingsChanged += AoMudarMonitores;
+        Contadores.Mudaram += AoMudarContadores;
+        Contadores.Iniciar();
+    }
+
+    void AoMudarContadores()
+    {
+        if (IsHandleCreated)
+            BeginInvoke((Action)Invalidate);
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -1178,6 +1297,8 @@ class Painel : Form
             areaDoTexto = new Rectangle(face.X, y + lado, face.Width, face.Bottom - y - lado);
         }
 
+        DesenharContador(g, Contadores.De(botao), face, cor);
+
         if (!temRotulo)
             return;
 
@@ -1187,6 +1308,32 @@ class Painel : Form
             g.DrawString(botao.Rotulo, fonte, sombraTexto, sombreado, alinhamento);
         using (var corTexto = new SolidBrush(tema.TextoBotao))
             g.DrawString(botao.Rotulo, fonte, corTexto, areaDoTexto, alinhamento);
+    }
+
+    // Círculo vermelho no canto da face, como o contador dos apps no celular.
+    void DesenharContador(Graphics g, int quantidade, Rectangle face, Color corDoBotao)
+    {
+        if (quantidade <= 0)
+            return;
+
+        string texto = quantidade > 99 ? "99+" : quantidade.ToString();
+        int diametro = Math.Max(22, (int)(face.Height * 0.42f));
+        using (var letra = new Font(fonte.FontFamily, diametro * 0.58f, FontStyle.Bold, GraphicsUnit.Pixel))
+        using (var formato = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+        {
+            int largura = Math.Max(diametro, (int)g.MeasureString(texto, letra).Width + diametro / 3);
+            int margem = diametro / 4;
+            var bolha = new Rectangle(face.Right - largura - margem, face.Y + margem, largura, diametro);
+            using (GraphicsPath forma = Arredondado(bolha, diametro / 2))
+            using (var fundo = new SolidBrush(COR_CONTADOR))
+            using (var aro = new Pen(Misturar(corDoBotao, Color.Black, 0.35f), 2f))
+            {
+                g.FillPath(fundo, forma);
+                g.DrawPath(aro, forma);
+            }
+            using (var branco = new SolidBrush(Color.White))
+                g.DrawString(texto, letra, branco, bolha, formato);
+        }
     }
 
     static Color Misturar(Color a, Color b, float quantidade)
@@ -1214,6 +1361,8 @@ class Painel : Form
         if (disposing)
         {
             SystemEvents.DisplaySettingsChanged -= AoMudarMonitores;
+            Contadores.Mudaram -= AoMudarContadores;
+            Contadores.Parar();
             iconeBandeja.Dispose();
             if (fonte != null)
                 fonte.Dispose();

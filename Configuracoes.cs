@@ -105,6 +105,7 @@ public class Configuracoes
     public int EscalaFonte = 100;
     public int EspacoEntreBotoes = Padrao.Espaco;
     public bool IconeAoLado = true;
+    public bool MostrarContadores = true;
     public bool SempreVisivel = true;
     public bool BrilhoDeckPorSoftware = true;
     public int BrilhoDeck = 100;
@@ -292,6 +293,7 @@ class JanelaConfiguracoes : Form
     readonly NumericUpDown campoEspaco = new NumericUpDown { Name = "campoEspaco", Minimum = 0, Maximum = 80, Increment = 4, Width = 80 };
     readonly CheckBox caixaInicio = new CheckBox { Name = "caixaInicio", Text = "Iniciar com o Windows", AutoSize = true };
     readonly CheckBox caixaSempreVisivel = new CheckBox { Name = "caixaSempreVisivel", Text = "Sempre visível sobre as outras janelas", AutoSize = true };
+    readonly CheckBox caixaContadores = new CheckBox { Name = "caixaContadores", Text = "Mostrar o contador de notificações dos apps", AutoSize = true };
     readonly CheckBox caixaBrilhoSoftware = new CheckBox { Name = "caixaBrilhoSoftware", Text = "Escurecer o deck por software", AutoSize = true };
     readonly ListBox lista = new ListBox { Name = "lista", Dock = DockStyle.Fill, IntegralHeight = false };
     readonly TextBox campoRotulo = new TextBox { Name = "campoRotulo", AccessibleName = "Rotulo do botao", Dock = DockStyle.Fill };
@@ -384,6 +386,7 @@ class JanelaConfiguracoes : Form
         grade.Controls.Add(caixaInicio, 1, 7);
         grade.Controls.Add(caixaSempreVisivel, 1, 8);
         grade.Controls.Add(caixaBrilhoSoftware, 1, 9);
+        grade.Controls.Add(caixaContadores, 1, 10);
 
         var grupo = new GroupBox { Text = "Geral", Dock = DockStyle.Fill };
         grupo.Controls.Add(grade);
@@ -559,6 +562,7 @@ class JanelaConfiguracoes : Form
         caixaInicio.Checked = InicioComWindows.Ativo;
         caixaSempreVisivel.Checked = copia.SempreVisivel;
         caixaBrilhoSoftware.Checked = copia.BrilhoDeckPorSoftware;
+        caixaContadores.Checked = copia.MostrarContadores;
     }
 
     static void Selecionar(ComboBox combo, object valor)
@@ -779,6 +783,7 @@ class JanelaConfiguracoes : Form
         copia.EspacoEntreBotoes = (int)campoEspaco.Value;
         copia.SempreVisivel = caixaSempreVisivel.Checked;
         copia.BrilhoDeckPorSoftware = caixaBrilhoSoftware.Checked;
+        copia.MostrarContadores = caixaContadores.Checked;
         copia.BrilhoDeck = Configuracoes.Atual.BrilhoDeck;
 
         // O painel pode ter sido movido com esta janela aberta.

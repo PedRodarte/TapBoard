@@ -50,6 +50,11 @@ escuro** alterna na hora e a escolha fica salva.
   é gerado e fica fora do Git.
 - Código: `TapBoard.cs` (painel e ações), `Configuracoes.cs` (dados salvos e janela
   de configurações) e `Icones.cs` (leitor de SVG e busca de ícones).
+- O contador de notificações lê, por UI Automation (`UIAutomationClient.dll`, que
+  vem no Windows, na pasta `WPF` do .NET Framework), o texto que cada app deixa no
+  seu botão da barra de tarefas, o mesmo que os leitores de tela leem. Sem login e
+  sem internet. Se a Microsoft mudar esse texto, o contador some, e o botão continua
+  funcionando.
 - O ícone do programa é o `TapBoard.ico`, embutido no .exe pelo `build.cmd`. Ele é
   gerado pelo `gerar-icone.ps1`, que só precisa rodar de novo se o desenho mudar.
 - Internet só na busca de ícones, pela API gratuita da [Iconify](https://iconify.design),
@@ -92,6 +97,11 @@ escuro** alterna na hora e a escolha fica salva.
 | Mídia   | play/pause, anterior, próxima |
 | Sistema | recorte de tela, Explorer, VS Code, Gerenciador de Tarefas, bloquear PC |
 | Painel  | alternar entre janela e tela cheia, alternar tema claro e escuro |
+
+Botões que abrem um programa trazem para a frente a janela dele, se já estiver
+aberto (menos o Explorer, que abre uma janela nova). Eles também mostram um
+contador vermelho quando o app tem notificações na barra de tarefas, como o Teams
+ou o WhatsApp.
 
 ## Roadmap (ideias futuras, por ordem aproximada)
 
