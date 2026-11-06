@@ -192,8 +192,9 @@ botões de meia casa com ícone mostram só o ícone. O texto e o ícone diminue
 
 - **Manter tudo em C# 5 com o que já vem no Windows.** Não propor reescrever em
   outra linguagem nem adicionar dependências sem perguntar antes.
-- **Manter os controles comuns do Windows.** Não trocar barra, bordas ou arraste
-  por versões desenhadas à mão para proteger o foco: foi decisão do usuário.
+- **Barra do topo numa linha só, como a do VS Code** (decisão do usuário): ícone,
+  menus, título, engrenagem e minimizar/maximizar/fechar desenhados pelo TapBoard.
+  Bordas, arraste, duplo clique e enquadramento continuam sendo os do Windows.
 - **Tocar nos botões não pode tirar o foco do app em uso.** Se uma mudança puder
   afetar isso, avisar explicitamente e explicar como testar.
 - **Manter o projeto completo e compilando** a cada mudança, não só trechos ou
@@ -204,6 +205,29 @@ botões de meia casa com ícone mostram só o ícone. O texto e o ícone diminue
 - Preferir APIs nativas do Windows, com `DllImport` documentado, a hacks com
   timers ou `Sleep`.
 - Caminhos de executáveis externos (VS Code etc.) ficam no parâmetro do botão.
+- O app é para qualquer pessoa, não só para o autor: o que for útil a leigos vem
+  pronto no catálogo, sem pedir para mexer em pastas ou arquivos.
+- Nunca usar o nome "Stream Deck" no nome, na interface ou na documentação.
+- Internet só na busca de ícones. Painel pela rede local ou qualquer outro uso de
+  rede precisa de permissão explícita.
+- Antes de mexer na configuração do usuário (`%APPDATA%\TapBoard`), fazer backup;
+  nunca apagar nem sobrescrever a pasta. Antes de reiniciar o TapBoard, confirmar
+  que a janela de configurações está fechada.
+- Enquanto o usuário estiver usando o PC: não simular cliques, não mandar teclas ou
+  atalhos que caiam no app em foco e não ligar/desligar o microfone dele em testes.
+  Conferir telas desenhando fora da tela (`DrawToBitmap`) ou com `PrintWindow`.
+
+## Pendências
+
+- Testar pelo toque: menus da barra (abrir, fechar e o foco voltar ao app), botões
+  minimizar/maximizar/fechar, arrastar pela barra e a lista "Escolher botões".
+- Confirmar a correção do brilho (descer com −10 até o limite e depois 100%: deve
+  bastar um toque).
+- Decidir a fonte: sugestão de Bahnschrift SemiBold SemiCondensed (já vem no
+  Windows) no lugar de Roboto.
+- Linux/Android: sugestão de começar por um painel web na rede local (precisa de
+  permissão, pela regra de rede).
+- Vários decks em abas na barra do topo (roadmap item 3).
 
 ## Como testar
 
